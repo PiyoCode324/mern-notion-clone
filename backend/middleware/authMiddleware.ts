@@ -11,11 +11,12 @@ export const authMiddleware = async (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Unauthorized" });
+    res.status(401).json({ error: "Unauthorized" });
+    return;
   }
 
   const token = authHeader.split(" ")[1];
@@ -24,8 +25,10 @@ export const authMiddleware = async (
     const decodedToken = await admin.auth().verifyIdToken(token);
     req.user = decodedToken; // { uid, email, ... }
     next();
+    return;
   } catch (error) {
     console.error("Firebase Auth Error:", error);
-    return res.status(401).json({ error: "Unauthorized" });
+    res.status(401).json({ error: "Unauthorized" });
+    return;
   }
 };
