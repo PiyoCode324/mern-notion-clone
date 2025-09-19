@@ -26,7 +26,7 @@ export const registerUserInMongoDB = async (req: Request, res: Response) => {
     await newUser.save();
     console.log("User saved to MongoDB:", newUser.uid);
 
-    res
+    return res
       .status(201)
       .json({ message: "User created successfully in Firebase and MongoDB" });
   } catch (error) {
