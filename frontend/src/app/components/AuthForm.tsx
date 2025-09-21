@@ -23,19 +23,20 @@ export const AuthForm: React.FC<AuthFormProps> = ({ isLogin }) => {
     setError("");
 
     try {
+      let userCredential;
+
       if (isLogin) {
-        // ログイン処理
-        await signInWithEmailAndPassword(auth, email, password);
-        // ログイン成功後はダッシュボードへリダイレクト
-        window.location.href = "/dashboard";
+        // ログイン
+        userCredential = await signInWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
       } else {
-        // サインアップ処理
-        // 1. バックエンドのAPIを呼び出し、FirebaseとMongoDBにユーザーを登録
+        // サインアップ (バックエンドに登録)
         const response = await fetch("http://localhost:5000/api/auth/signup", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password }),
         });
 
@@ -46,12 +47,20 @@ export const AuthForm: React.FC<AuthFormProps> = ({ isLogin }) => {
           );
         }
 
-        // 2. バックエンドでのユーザー作成が成功したら、フロントエンドでログイン状態を確立
-        await signInWithEmailAndPassword(auth, email, password);
-
-        // サインアップ成功後はダッシュボードへリダイレクト
-        window.location.href = "/dashboard";
+        // Firebase にもサインインして token を取得
+        userCredential = await signInWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
       }
+
+      // ✅ Firebase IDトークンを localStorage に保存
+      const token = await userCredential.user.getIdToken();
+      localStorage.setItem("token", token);
+
+      // ダッシュボードへ
+      window.location.href = "/dashboard";
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);

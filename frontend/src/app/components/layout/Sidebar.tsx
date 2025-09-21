@@ -6,12 +6,22 @@ const Sidebar: React.FC = () => {
   return (
     <aside className="w-64 bg-gray-100 dark:bg-gray-900 h-full p-4 overflow-y-auto">
       <nav className="flex flex-col space-y-3">
+        {/* トップページ */}
         <Link href="/" className="hover:underline">
+          Home
+        </Link>
+
+        {/* ノート一覧ページ */}
+        <Link href="/notes" className="hover:underline">
           Notes
         </Link>
-        <Link href="/create" className="hover:underline">
+
+        {/* ノート作成ページ */}
+        <Link href="/notes/create" className="hover:underline">
           Create Note
         </Link>
+
+        {/* プロフィール */}
         <Link href="/profile" className="hover:underline">
           Profile
         </Link>
