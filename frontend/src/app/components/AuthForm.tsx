@@ -1,4 +1,4 @@
-// frontend/src/components/AuthForm.tsx
+// frontend/src/app/components/AuthForm.tsx
 "use client";
 
 import { useState } from "react";

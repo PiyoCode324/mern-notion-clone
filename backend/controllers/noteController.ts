@@ -38,6 +38,28 @@ export const createNote = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
+// GET /notes/:id
+export const getNoteById = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const uid = req.user?.uid;
+    if (!uid) return res.status(401).json({ error: "Unauthorized" });
+
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "Invalid note ID" });
+    }
+
+    const note = await Note.findOne({ _id: id, createdBy: uid });
+    if (!note) return res.status(404).json({ error: "Note not found" });
+
+    return res.status(200).json(note);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
 // PUT /notes/:id
 export const updateNote = async (req: AuthenticatedRequest, res: Response) => {
   try {

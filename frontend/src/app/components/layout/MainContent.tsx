@@ -1,4 +1,4 @@
-// frontend/src/components/layout/MainContent.tsx
+// frontend/src/app/components/layout/MainContent.tsx
 import React, { ReactNode } from "react";
 
 interface MainContentProps {

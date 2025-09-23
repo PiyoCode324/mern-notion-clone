@@ -1,4 +1,4 @@
-// frontend/src/components/layout/Layout.tsx
+// frontend/src/app/components/layout/Layout.tsx
 import React, { ReactNode } from "react";
 import Header from "./Header";
 import Sidebar from "./Sidebar";

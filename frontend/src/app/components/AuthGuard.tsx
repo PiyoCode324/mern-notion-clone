@@ -1,4 +1,4 @@
-// frontend/src/components/AuthGuard.tsx
+// frontend/src/app/components/AuthGuard.tsx
 "use client";
 
 import { ReactNode, useEffect } from "react";

@@ -1,4 +1,4 @@
-// frontend/src/components/layout/Header.tsx
+// frontend/src/app/components/layout/Header.tsx
 "use client"; // ← これで Client Component になる
 
 import React from "react";

@@ -15,6 +15,7 @@ const NoteList: React.FC<NoteListProps> = ({ notes }) => {
       {notes.map((note) => (
         <NoteCard
           key={note._id}
+          _id={note._id}              // 追加：詳細ページ用
           title={note.title}
           content={note.content}
           tags={note.tags}

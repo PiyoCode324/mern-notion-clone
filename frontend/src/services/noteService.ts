@@ -22,6 +22,19 @@ export const getNotes = async (token: string): Promise<INote[]> => {
   return await handleResponse(res);
 };
 
+export const getNoteById = async (
+  id: string,
+  token: string
+): Promise<INote> => {
+  const res = await fetch(`${API_URL}/${id}`, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return await handleResponse(res);
+};
+
 // ノート作成
 export const createNote = async (
   noteData: Partial<INote>,

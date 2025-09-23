@@ -1,4 +1,4 @@
-// frontend/src/components/layout/Sidebar.tsx
+// frontend/src/app/components/layout/Sidebar.tsx
 import React from "react";
 import Link from "next/link";
 
