@@ -1,6 +1,6 @@
 // src/app/layout.tsx
 import "./globals.css";
-import Layout from "./components/layout/Layout";
+import Layout from "./components/layout/Layout"; // 共通レイアウトをインポート
 
 export const metadata = {
   title: "Next.js",

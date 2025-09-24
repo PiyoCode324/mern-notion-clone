@@ -3,7 +3,7 @@ import React from "react";
 import Link from "next/link";
 
 interface NoteCardProps {
-  _id: string; // 詳細ページ用にIDを追加
+  _id: string; // 詳細ページ用にID
   title: string;
   content: string;
   tags: string[];
@@ -18,28 +18,32 @@ const NoteCard: React.FC<NoteCardProps> = ({
   createdAt,
 }) => {
   return (
-    <Link
-      href={`/notes/${_id}`}
-      className="block hover:shadow-lg transition-shadow"
-    >
-      <div className="border p-4 rounded shadow bg-white dark:bg-gray-800">
-        <h2 className="font-bold text-lg">{title}</h2>
-        <p className="text-gray-700 dark:text-gray-300 mt-2 line-clamp-3">
+    <Link href={`/notes/${_id}`} className="block">
+      <div className="border border-transparent hover:border-gray-300 transition-all rounded-lg p-5 bg-white dark:bg-neutral-900 shadow-sm hover:shadow-md cursor-pointer">
+        {/* タイトル */}
+        <h2 className="font-semibold text-lg mb-2">{title}</h2>
+
+        {/* コンテンツ */}
+        <p className="text-gray-700 dark:text-gray-300 line-clamp-3">
           {content}
         </p>
+
+        {/* タグ */}
         {tags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
+          <div className="flex flex-wrap gap-2 mt-3">
             {tags.map((tag) => (
               <span
                 key={tag}
-                className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-sm"
+                className="bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-200 px-2 py-0.5 rounded text-xs"
               >
-                {tag}
+                #{tag}
               </span>
             ))}
           </div>
         )}
-        <p className="text-gray-400 text-sm mt-2">
+
+        {/* 作成日時 */}
+        <p className="text-gray-400 text-xs mt-3">
           {new Date(createdAt).toLocaleString()}
         </p>
       </div>

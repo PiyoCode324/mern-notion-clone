@@ -5,9 +5,10 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "../../hooks/useAuth";
 import { INote } from "../../../types";
-import { getNotes, deleteNote } from "@/services/noteService";
+import { deleteNote, getNoteById } from "@/services/noteService";
 import NoteForm from "./NoteForm";
-import { getNoteById } from "@/services/noteService";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export default function NoteDetail() {
   const { noteId } = useParams() as { noteId: string };
@@ -24,7 +25,7 @@ export default function NoteDetail() {
 
     const fetchNote = async () => {
       try {
-        const found = await getNoteById(noteId, token); // ← 新しい関数を呼ぶ
+        const found = await getNoteById(noteId, token);
         setNote(found);
       } catch (err: unknown) {
         if (err instanceof Error) setError(err.message);
@@ -62,7 +63,7 @@ export default function NoteDetail() {
           token={token}
           onCancel={() => setEditing(false)}
           onSaved={(updatedNote) => {
-            setNote(updatedNote);
+            setNote(updatedNote); // 即反映
             setEditing(false);
           }}
         />
@@ -73,7 +74,14 @@ export default function NoteDetail() {
             Created: {new Date(note.createdAt).toLocaleString()} | Updated:{" "}
             {new Date(note.updatedAt).toLocaleString()}
           </div>
-          <div className="mb-4 whitespace-pre-wrap">{note.content}</div>
+
+          {/* Markdown 表示部分 */}
+          <div className="mb-4 prose dark:prose-invert">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {note.content}
+            </ReactMarkdown>
+          </div>
+
           <div className="mb-4">
             {note.tags.map((t) => (
               <span
@@ -84,6 +92,7 @@ export default function NoteDetail() {
               </span>
             ))}
           </div>
+
           <div className="flex space-x-2">
             <button
               className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500"

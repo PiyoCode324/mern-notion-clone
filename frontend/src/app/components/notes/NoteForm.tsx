@@ -5,6 +5,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { INote } from "../../../types";
 import { createNote, updateNote } from "@/services/noteService";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface NoteFormProps {
   note?: INote;
@@ -13,7 +15,12 @@ interface NoteFormProps {
   onSaved?: (note: INote) => void;
 }
 
-export default function NoteForm({ note, token, onCancel, onSaved }: NoteFormProps) {
+export default function NoteForm({
+  note,
+  token,
+  onCancel,
+  onSaved,
+}: NoteFormProps) {
   const isEdit = !!note;
   const router = useRouter();
 
@@ -32,7 +39,10 @@ export default function NoteForm({ note, token, onCancel, onSaved }: NoteFormPro
       const noteData = {
         title,
         content,
-        tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+        tags: tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
       };
 
       let savedNote: INote;
@@ -56,55 +66,70 @@ export default function NoteForm({ note, token, onCancel, onSaved }: NoteFormPro
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {error && <p className="text-red-500">{error}</p>}
-      <div>
-        <label className="block font-medium mb-1">Title</label>
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          required
-          className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-      <div>
-        <label className="block font-medium mb-1">Content</label>
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          rows={6}
-        />
-      </div>
-      <div>
-        <label className="block font-medium mb-1">Tags (comma separated)</label>
-        <input
-          type="text"
-          value={tags}
-          onChange={(e) => setTags(e.target.value)}
-          placeholder="tag1, tag2"
-          className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-      <div className="flex space-x-2">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500"
-        >
-          {loading ? "Saving..." : isEdit ? "Update" : "Create"}
-        </button>
-        {onCancel && (
+    <div className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <p className="text-red-500">{error}</p>}
+
+        <div>
+          <label className="block font-medium mb-1">Title</label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+            className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block font-medium mb-1">Content (Markdown)</label>
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            rows={6}
+          />
+        </div>
+
+        <div>
+          <label className="block font-medium mb-1">Preview</label>
+          <div className="border p-3 rounded bg-gray-50 prose dark:prose-invert">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+          </div>
+        </div>
+
+        <div>
+          <label className="block font-medium mb-1">
+            Tags (comma separated)
+          </label>
+          <input
+            type="text"
+            value={tags}
+            onChange={(e) => setTags(e.target.value)}
+            placeholder="tag1, tag2"
+            className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div className="flex space-x-2">
           <button
-            type="button"
-            onClick={onCancel}
-            className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-200"
+            type="submit"
+            disabled={loading}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500"
           >
-            Cancel
+            {loading ? "Saving..." : isEdit ? "Update" : "Create"}
           </button>
-        )}
-      </div>
-    </form>
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-200"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </form>
+    </div>
   );
 }
