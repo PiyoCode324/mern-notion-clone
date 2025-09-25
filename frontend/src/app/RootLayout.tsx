@@ -1,19 +1,27 @@
 // frontend/src/app/RootLayout.tsx
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+// ----------------------------------------------------
+// 修正点1: Geistの代わりに、Google FontsのInterとRoboto_Monoをインポート
+// ----------------------------------------------------
+import { Inter, Roboto_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "./components/layout/Header";
 import Sidebar from "./components/layout/Sidebar";
 import MainContent from "./components/layout/MainContent";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// ----------------------------------------------------
+// 修正点2: フォントローダーの変数名と設定をGoogle Fontsに合わせる
+// ----------------------------------------------------
+const inter = Inter({
   subsets: ["latin"],
+  // CSS変数名（--font-geist-sans）をInterに適用
+  variable: "--font-geist-sans",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const robotoMono = Roboto_Mono({
   subsets: ["latin"],
+  // CSS変数名（--font-geist-mono）をRoboto_Monoに適用
+  variable: "--font-geist-mono",
 });
 
 export const metadata: Metadata = {
@@ -26,9 +34,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      {/* ---------------------------------------------------- */}
+      {/* 修正点3: bodyタグにフォントのクラスを適用する（variableプロパティを使用） */}
+      {/* ---------------------------------------------------- */}
+      <body className={`${inter.variable} ${robotoMono.variable} antialiased`}>
         <Header />
         <div className="flex flex-1">
           <Sidebar />
