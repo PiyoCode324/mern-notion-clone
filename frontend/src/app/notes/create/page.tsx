@@ -5,26 +5,65 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../hooks/useAuth";
 import { createNote } from "@/services/noteService";
+import { EditorContent, useEditor, JSONContent } from "@tiptap/react";
+import Link from "@tiptap/extension-link";
+
+// 🚨 修正: StarterKitを削除し、コア機能とMarkdown機能を個別にインポート
+import Document from "@tiptap/extension-document";
+import Paragraph from "@tiptap/extension-paragraph";
+import Text from "@tiptap/extension-text";
+
+// ブロック要素
+import Heading from "@tiptap/extension-heading";
+import BulletList from "@tiptap/extension-bullet-list";
+import OrderedList from "@tiptap/extension-ordered-list";
+import ListItem from "@tiptap/extension-list-item";
+import Blockquote from "@tiptap/extension-blockquote";
+import CodeBlock from "@tiptap/extension-code-block";
+// -------------------------------------------------------------
 
 export default function CreateNotePage() {
-  const { user, token, loading } = useAuth(); // tokenとloadingをuseAuthから取得
+  const { user, token, loading } = useAuth();
   const router = useRouter();
 
   const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
   const [tags, setTags] = useState("");
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
 
-  // useAuthのloading状態とuser/tokenの有無をチェック
-  if (loading) {
-    return <p className="p-4">Loading...</p>;
-  }
+  // Tiptapエディタのセットアップを更新
+  const editor = useEditor({
+    extensions: [
+      // 🚨 修正: StarterKitを削除し、必要な拡張機能を直接追加
+      Document,
+      Paragraph,
+      Text,
 
-  if (!user || !token) {
-    // トークンがない場合は、useAuthのフックが既にリダイレクトを処理しているはず
-    return null;
-  }
+      Link,
+
+      // Notion風のブロック機能を実現するための拡張機能を明示的に追加
+      Heading.configure({
+        levels: [1, 2, 3],
+      }),
+      BulletList,
+      OrderedList,
+      ListItem,
+      Blockquote,
+      CodeBlock,
+    ],
+    content: { type: "doc", content: [] } as JSONContent,
+    editorProps: {
+      attributes: {
+        // Notion風の見た目にするためのカスタムクラスを追加
+        className:
+          "notion-editor border p-2 rounded min-h-[200px] focus:outline-none",
+      },
+    },
+    immediatelyRender: false,
+  });
+
+  if (loading) return <p className="p-4">Loading...</p>;
+  if (!user || !token) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,19 +74,19 @@ export default function CreateNotePage() {
       await createNote(
         {
           title,
-          content,
-          tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+          content: editor?.getJSON() || { type: "doc", content: [] },
+          // contentはJSONContentなので、`TiptapEditor.tsx`で行っているのと同じく
+          // バックエンドにJSON形式で送信されることを想定
+          tags: tags
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean),
         },
-        token // ここで最新のトークンを渡す
+        token
       );
-
       router.push("/notes");
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Unknown error");
-      }
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setCreating(false);
     }
@@ -71,11 +110,8 @@ export default function CreateNotePage() {
 
         <div>
           <label className="block font-medium mb-1">Content</label>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          {/* EditorContent */}
+          <EditorContent editor={editor} />
         </div>
 
         <div>

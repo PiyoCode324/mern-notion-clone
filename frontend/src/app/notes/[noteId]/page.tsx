@@ -1,8 +1,12 @@
 // frontend/src/app/notes/[noteId]/page.tsx
-"use client"; // NoteDetail uses useParams/useAuth which are client hooks
+"use client";
+
 import React from "react";
-import NoteDetail from "../../components/notes/NoteDetail"; // 相対パスに注意
+import { useParams } from "next/navigation";
+import NoteDetail from "../../components/notes/NoteDetail";
 
 export default function NoteDetailPage() {
-  return <NoteDetail />;
+  const { noteId } = useParams() as { noteId: string };
+
+  return <NoteDetail noteId={noteId} />;
 }

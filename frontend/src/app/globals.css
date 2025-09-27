@@ -2,3 +2,110 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Notion風の基本的なスタイリング例 */
+.notion-editor h1,
+.notion-editor .ProseMirror h1 {
+  font-size: 1.875rem !important; /* text-3xl */
+  font-weight: 700 !important; /* font-bold */
+  margin-top: 1.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.notion-editor h2,
+.notion-editor .ProseMirror h2 {
+  font-size: 1.5rem !important; /* text-2xl */
+  font-weight: 600 !important; /* font-semibold */
+  margin-top: 1.25rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.notion-editor h3,
+.notion-editor .ProseMirror h3 {
+  font-size: 1.25rem !important; /* text-xl */
+  font-weight: 600 !important; /* font-semibold */
+  margin-top: 1rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.notion-editor p {
+  margin-bottom: 0.25rem;
+  line-height: 1.5;
+}
+
+.notion-editor ul,
+.notion-editor .ProseMirror ul {
+  padding-left: 1.5rem !important;
+  list-style-type: disc !important;
+  margin-bottom: 0.25rem;
+}
+
+.notion-editor ol,
+.notion-editor .ProseMirror ol {
+  padding-left: 1.5rem !important;
+  margin-bottom: 0.25rem;
+}
+
+.notion-editor li {
+  margin-bottom: 0;
+  line-height: 1.5;
+}
+
+.notion-editor blockquote,
+.notion-editor .ProseMirror blockquote {
+  border-left: 3px solid #ccc !important;
+  padding-left: 1rem !important;
+  margin-left: 0 !important;
+  color: #6c757d !important;
+  font-style: italic !important;
+}
+
+.notion-editor pre,
+.notion-editor .ProseMirror pre {
+  background-color: #f7f6f3 !important;
+  padding: 0.75rem 1rem !important;
+  border-radius: 4px !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+  overflow-x: auto !important;
+}
+
+.notion-editor pre code {
+  font-family: monospace !important;
+  font-size: 0.875rem !important; /* text-sm */
+}
+
+.notion-editor a {
+  color: #3b82f6;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.notion-editor strong,
+.notion-editor .ProseMirror strong {
+  font-weight: 700 !important; /* 太字を強制適用 */
+}
+
+.notion-editor em,
+.notion-editor .ProseMirror em {
+  font-style: italic !important; /* 斜体を強制適用 */
+}
+
+.notion-editor code,
+.notion-editor .ProseMirror code {
+  background-color: #f7f6f3 !important; /* インラインコードの背景色 */
+  font-family: monospace !important;
+  padding: 2px 4px !important;
+  border-radius: 3px !important;
+}
+
+.notion-editor p.is-selected,
+.notion-editor h1.is-selected,
+.notion-editor h2.is-selected,
+.notion-editor h3.is-selected,
+.notion-editor ul.is-selected,
+.notion-editor ol.is-selected,
+.notion-editor blockquote.is-selected,
+.notion-editor pre.is-selected {
+  background-color: rgba(55, 53, 47, 0.08);
+}

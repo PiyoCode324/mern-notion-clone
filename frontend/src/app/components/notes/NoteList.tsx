@@ -1,28 +1,35 @@
 // frontend/src/app/components/notes/NoteList.tsx
 import React from "react";
-import Link from "next/link";
 import { INote } from "../../../types";
 
 interface NoteListProps {
   notes: INote[];
+  onSelect?: (id: string) => void;
+  selectedNoteId?: string | null;
 }
 
-const NoteList: React.FC<NoteListProps> = ({ notes }) => {
+const NoteList: React.FC<NoteListProps> = ({
+  notes,
+  onSelect,
+  selectedNoteId,
+}) => {
   if (notes.length === 0) return <p>No notes yet.</p>;
 
   return (
     <div className="space-y-2">
       {notes.map((note) => (
-        <Link
+        <div
           key={note._id}
-          href={`/notes/${note._id}`}
-          className="block p-2 rounded hover:bg-gray-200"
+          onClick={() => onSelect?.(note._id)}
+          className={`cursor-pointer p-2 rounded ${
+            selectedNoteId === note._id ? "bg-blue-200" : "hover:bg-gray-200"
+          }`}
         >
           <p className="truncate font-medium">{note.title || "Untitled"}</p>
           <span className="text-xs text-gray-500">
             {new Date(note.updatedAt).toLocaleDateString()}
           </span>
-        </Link>
+        </div>
       ))}
     </div>
   );

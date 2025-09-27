@@ -5,55 +5,55 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { INote } from "../../types";
 import NoteList from "../components/notes/NoteList";
+import NoteDetail from "../components/notes/NoteDetail";
 import { getNotes } from "@/services/noteService";
 
 export default function NotesPage() {
-  const { user, token, loading } = useAuth(); // tokenとloadingをuseAuthから取得
+  const { user, token, loading } = useAuth();
   const [notes, setNotes] = useState<INote[]>([]);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchAllNotes = async () => {
-      // ユーザーまたはトークンがなければ処理を中断
-      if (!user || !token) {
-        return;
-      }
+    if (!user || !token) return;
 
+    const fetchAllNotes = async () => {
       try {
-        const data = await getNotes(token); // ここで最新のトークンを渡す
+        const data = await getNotes(token);
         setNotes(data);
         setFetchError(null);
+        // 最初のノートを自動選択
+        if (data.length > 0) setSelectedNoteId(data[0]._id);
       } catch (err: unknown) {
-        console.error("Error fetching notes:", err);
-        if (err instanceof Error) {
-          setFetchError(err.message);
-        } else {
-          setFetchError("Failed to fetch notes.");
-        }
-        setNotes([]); // エラー時はノートリストをクリア
+        console.error(err);
+        if (err instanceof Error) setFetchError(err.message);
+        else setFetchError("Failed to fetch notes.");
+        setNotes([]);
       }
     };
 
-    if (!loading) {
-      // ローディングが完了してからフェッチ開始
-      fetchAllNotes();
-    }
-  }, [user, token, loading]);
+    fetchAllNotes();
+  }, [user, token]);
 
-  if (loading) {
-    return <p className="p-4">Loading...</p>;
-  }
-
-  // userやtokenがない場合は、useAuthがリダイレクトを処理しているためnullを返す
-  if (!user || !token) {
-    return null;
-  }
+  if (loading) return <p className="p-4">Loading...</p>;
+  if (!user || !token) return null;
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Your Notes</h1>
-      {fetchError && <p className="text-red-500 mb-4">Error: {fetchError}</p>}
-      <NoteList notes={notes} />
+    <div className="flex h-screen">
+      {/* メインコンテンツ */}
+      <main className="flex-1 p-6 overflow-y-auto">
+        {selectedNoteId ? (
+          <NoteDetail
+            noteId={selectedNoteId}
+            onDelete={() => {
+              setNotes((prev) => prev.filter((n) => n._id !== selectedNoteId));
+              setSelectedNoteId(null);
+            }}
+          />
+        ) : (
+          <p className="text-gray-500">Select a note to view/edit</p>
+        )}
+      </main>
     </div>
   );
 }

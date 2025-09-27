@@ -5,7 +5,8 @@ import mongoose, { Schema, Model, InferSchemaType } from "mongoose";
 const NoteSchema = new Schema(
   {
     title: { type: String, required: true },
-    content: { type: String, default: "" },
+    content: { type: Schema.Types.Mixed, default: {} }, // Tiptap JSON
+    markdown: { type: String, default: "" }, // Markdown文字列
     tags: { type: [String], default: [] },
     createdBy: { type: String, required: true }, // Firebase UID
   },
