@@ -1,54 +1,96 @@
 // frontend/src/app/components/notes/NoteDetail.tsx
 "use client";
 
-import React, { useEffect, useState, useRef } from "react"; // 🚨 useRefを含めたReactフックのimport
-import { useAuth } from "../../hooks/useAuth"; // 認証情報（ユーザー、トークン、ロード状態）を取得するカスタムフック
-import { INote } from "../../../types"; // ノートの型定義
-import { deleteNote, getNoteById, updateNote } from "@/services/noteService"; // ノート関連のAPIサービス
-import TiptapEditor from "./TiptapEditor"; // Tiptapエディタコンポーネント
-import { defaultMarkdownSerializer } from "prosemirror-markdown"; // ProseMirrorのMarkdown変換機能
-import { JSONContent } from "@tiptap/core"; // TiptapのJSON形式コンテンツ型
-import { Node } from "prosemirror-model"; // ProseMirrorのNode型
+import React, {
+  useEffect,
+  useState,
+  useRef,
+  Dispatch,
+  SetStateAction,
+} from "react";
+import { useAuth } from "../../hooks/useAuth";
+import { INote } from "../../../types";
+import {
+  deleteNote,
+  getNoteById,
+  updateNote,
+  createNote,
+} from "@/services/noteService";
+import TiptapEditor from "./TiptapEditor";
+import { defaultMarkdownSerializer } from "prosemirror-markdown";
+import { JSONContent } from "@tiptap/core";
+import { Node } from "prosemirror-model";
 
-// コンポーネントに渡されるpropsの型定義
 interface NoteDetailProps {
-  noteId: string | null; // 表示するノートのID（nullの場合は何も表示しない）
-  onDelete?: () => void; // 削除後のコールバック（親コンポーネントで処理）
+  noteId?: string | null;
+  onDelete?: () => void;
+  editable?: boolean;
+
+  // CreatePage 用
+  onChangeContent?: (content: JSONContent) => Promise<void>;
+  isCreateMode?: boolean;
+  title?: string; // optional に変更
+  setTitle?: Dispatch<SetStateAction<string>>; // optional に変更
+  tags?: string[]; // optional に変更
+  setTags?: Dispatch<SetStateAction<string[]>>; // optional に変更
 }
 
-// デバウンス処理を行う関数（指定時間待ってから実行する仕組み）
 const debounce = (func: Function, delay: number) => {
-  let timeoutId: NodeJS.Timeout; // タイマーIDを格納する変数
+  let timeoutId: NodeJS.Timeout;
   return (...args: any) => {
-    clearTimeout(timeoutId); // 直前のタイマーをクリア
-    timeoutId = setTimeout(() => func(...args), delay); // delay後にfuncを実行
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
   };
 };
 
-const NoteDetail: React.FC<NoteDetailProps> = ({ noteId, onDelete }) => {
-  const { user, token, loading } = useAuth(); // 現在のユーザー、認証トークン、ロード中状態
-  const [note, setNote] = useState<INote | null>(null); // 表示するノートデータ
-  const [loadingNote, setLoadingNote] = useState(true); // ノート読み込み中フラグ
-  const [error, setError] = useState(""); // エラーメッセージ格納用
-  // const [editing, setEditing] = useState(false); // 🚨 編集モード切替は削除済み
+const NoteDetail: React.FC<NoteDetailProps> = ({
+  noteId = null,
+  onDelete,
+  editable = true,
+  onChangeContent,
+  isCreateMode = false,
+  title: propTitle,
+  setTitle: propSetTitle,
+  tags: propTags,
+  setTags: propSetTags,
+}) => {
+  const { user, token, loading } = useAuth();
+  const [note, setNote] = useState<INote | null>(null);
+  const [loadingNote, setLoadingNote] = useState(true);
+  const [error, setError] = useState("");
 
-  // エディタの現在の内容を保持するステート
-  const [editorContent, setEditorContent] = useState<JSONContent | undefined>(
-    undefined
-  );
-  // 初回ロード判定用（初回ロードでは自動保存を発火させないために利用）
+  const [editorContent, setEditorContent] = useState<JSONContent>({
+    type: "doc",
+    content: [],
+  });
+
+  // title / tags は props があればそれを使い、なければ state で管理
+  const [title, setTitle] = useState(propTitle || "");
+  const [tags, setTags] = useState<string[]>(propTags || []);
   const initialLoadRef = useRef(true);
 
-  // ノートのデータを取得してstateに格納する処理
+  // props が更新されたときも state を同期
   useEffect(() => {
-    if (!user || !token || !noteId) return; // ユーザー未ログインやID未指定の場合は処理しない
+    if (propTitle !== undefined) setTitle(propTitle);
+  }, [propTitle]);
+
+  useEffect(() => {
+    if (propTags !== undefined) setTags(propTags);
+  }, [propTags]);
+
+  // 既存ノート取得（作成モードでなければ）
+  useEffect(() => {
+    if (!user || !token || !noteId || isCreateMode) return;
 
     const fetchNote = async () => {
       setLoadingNote(true);
       try {
-        const found = await getNoteById(noteId, token); // APIからノートを取得
-        setNote(found); // ノートをstateに設定
-        setEditorContent(found.content || { type: "doc", content: [] }); // エディタ用のコンテンツも設定
+        const found = await getNoteById(noteId, token);
+        setNote(found);
+        setEditorContent(found.content || { type: "doc", content: [] });
+
+        if (!propTitle) setTitle(found.title || "");
+        if (!propTags) setTags(found.tags || []);
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Failed to fetch note");
       } finally {
@@ -57,115 +99,115 @@ const NoteDetail: React.FC<NoteDetailProps> = ({ noteId, onDelete }) => {
     };
 
     fetchNote();
-  }, [user, token, noteId]); // 認証情報やノートIDが変わったら再実行
+  }, [user, token, noteId, isCreateMode, propTitle, propTags]);
 
-  // 🚨 自動保存処理（デバウンス付き）
+  // 自動保存処理
   const autoSave = useRef(
     debounce(async (content: JSONContent) => {
-      if (!note || !token) return;
-
       try {
-        // JSON形式のcontentをProseMirrorのNodeに変換し、Markdownにシリアライズ
-        const docNode = content as unknown as Node;
-        const markdown = defaultMarkdownSerializer.serialize(docNode);
-
-        // ノートを更新（contentとmarkdownの両方を保存）
-        const updatedNote = await updateNote(
-          note._id,
-          { content, markdown },
-          token
-        );
-        // setNote(updatedNote);
-        // → Note全体を更新すると再レンダリングが過剰になるのでコメントアウト
-        console.log("Note saved automatically.");
+        if (isCreateMode && onChangeContent) {
+          await onChangeContent(content);
+        } else if (!isCreateMode && token && (noteId || note?._id)) {
+          const docNode = content as unknown as Node;
+          const markdown = defaultMarkdownSerializer.serialize(docNode);
+          const payload = { title, tags, content, markdown };
+          const updated = await updateNote(
+            note?._id || noteId!,
+            payload,
+            token
+          );
+          setNote(updated);
+          console.log("Auto-saved note");
+        }
       } catch (err: unknown) {
         setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to save note automatically"
+          err instanceof Error ? err.message : "Failed to auto-save note"
         );
       }
-    }, 1000) // 1秒間操作がなければ保存
+    }, 2000)
   ).current;
 
-  // editorContentが変更されたときに自動保存を発火
+  // editorContent が変更されたら自動保存
   useEffect(() => {
     if (initialLoadRef.current) {
-      // 初回ロードでは自動保存をスキップ
       initialLoadRef.current = false;
       return;
     }
+    if (editorContent) autoSave(editorContent);
+  }, [editorContent, title, tags, noteId]);
 
-    // ノートとコンテンツが揃っていれば自動保存
-    if (editorContent && note) {
-      autoSave(editorContent);
-    }
-  }, [editorContent, note]);
-
-  // ノート削除処理
   const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this note?")) return; // 確認ダイアログ
+    if (!confirm("Are you sure you want to delete this note?")) return;
     try {
       if (!note) return;
-      await deleteNote(note._id, token!); // API経由で削除
-      if (onDelete) onDelete(); // 親コンポーネントに通知
-      setNote(null); // 自身のstateからノートを消す
+      await deleteNote(note._id, token!);
+      if (onDelete) onDelete();
+      setNote(null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to delete note");
     }
   };
 
-  // エディタ内容が変更されたときに呼ばれるハンドラ
   const handleContentChange = (content: JSONContent) => {
     setEditorContent(content);
   };
 
-  // 各種状態に応じたレンダリング
-  if (loading || loadingNote) return <p className="p-4">Loading...</p>; // 認証またはノート取得中
-  if (!user || !token) return null; // ユーザー未ログインなら何も表示しない
-  if (error) return <p className="p-4 text-red-500">{error}</p>; // エラー発生時
-  if (!note || !editorContent)
-    return <p className="p-4">Note not found or content loading.</p>; // ノートが存在しない場合
+  if (loading || loadingNote) return <p className="p-4">Loading...</p>;
+  if (!user || !token) return null;
+  if (error) return <p className="p-4 text-red-500">{error}</p>;
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
-      {/* ノートタイトル */}
-      <h1 className="text-3xl font-bold mb-2">{note.title}</h1>
+      {/* タイトル */}
+      <input
+        type="text"
+        value={title}
+        onChange={(e) =>
+          propSetTitle ? propSetTitle(e.target.value) : setTitle(e.target.value)
+        }
+        placeholder="Title"
+        className="w-full text-3xl font-bold mb-2 border-b focus:outline-none"
+      />
 
-      {/* 作成日時と更新日時 */}
-      <div className="text-sm text-gray-500 mb-4">
-        Created: {new Date(note.createdAt).toLocaleString()} | Updated:{" "}
-        {new Date(note.updatedAt).toLocaleString()}
-      </div>
+      {/* 作成/更新日時 */}
+      {!isCreateMode && note?._id && (
+        <div className="text-sm text-gray-500 mb-4">
+          Created: {new Date(note.createdAt).toLocaleString()} | Updated:{" "}
+          {new Date(note.updatedAt).toLocaleString()}
+        </div>
+      )}
 
-      {/* タグ表示 */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        {note.tags.map((t) => (
-          <span
-            key={t}
-            className="inline-block bg-gray-200 text-gray-700 px-2 py-1 rounded text-sm"
-          >
-            {t}
-          </span>
-        ))}
-      </div>
+      {/* タグ */}
+      <input
+        type="text"
+        value={tags.join(", ")}
+        onChange={(e) =>
+          propSetTags
+            ? propSetTags(e.target.value.split(",").map((t) => t.trim()))
+            : setTags(e.target.value.split(",").map((t) => t.trim()))
+        }
+        placeholder="Tags (comma separated)"
+        className="w-full mb-4 border rounded px-3 py-1 focus:outline-none"
+      />
 
-      {/* エディタ本体 */}
+      {/* エディタ */}
       <TiptapEditor
-        content={editorContent} // ステートで管理している内容を渡す
-        onChange={handleContentChange} // 内容が変わったときにステート更新
-        editable={true} // 常に編集可能（Notion風）
+        content={editorContent}
+        onChange={handleContentChange}
+        editable={editable}
       />
 
       {/* 削除ボタン */}
-      <div className="flex space-x-2 mt-4">
-        <button
-          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-500"
-          onClick={handleDelete}
-        >
-          Delete
-        </button>
-      </div>
+      {!isCreateMode && note?._id && (
+        <div className="flex space-x-2 mt-4">
+          <button
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-500"
+            onClick={handleDelete}
+          >
+            Delete
+          </button>
+        </div>
+      )}
     </div>
   );
 };
