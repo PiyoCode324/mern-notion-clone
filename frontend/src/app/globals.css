@@ -1,9 +1,17 @@
 /* frontend/src/app/globals.css */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
-/* Notion風の基本的なスタイリング例 */
+/* ==========================================
+   Tailwind CSSの基本セットアップ
+   ========================================== */
+@tailwind base; /* ベーススタイル（リセット・基本フォントなど）を読み込む */
+@tailwind components; /* コンポーネント用のユーティリティスタイルを読み込む */
+@tailwind utilities; /* ユーティリティクラス（m-2, p-4など）を読み込む */
+
+/* ==========================================
+   Notion風エディタの基本スタイリング
+   ========================================== */
+
+/* 見出し1（h1）のスタイル */
 .notion-editor h1,
 .notion-editor .ProseMirror h1 {
   font-size: 1.875rem !important; /* text-3xl */
@@ -12,6 +20,7 @@
   margin-bottom: 0.5rem !important;
 }
 
+/* 見出し2（h2）のスタイル */
 .notion-editor h2,
 .notion-editor .ProseMirror h2 {
   font-size: 1.5rem !important; /* text-2xl */
@@ -20,6 +29,7 @@
   margin-bottom: 0.5rem !important;
 }
 
+/* 見出し3（h3）のスタイル */
 .notion-editor h3,
 .notion-editor .ProseMirror h3 {
   font-size: 1.25rem !important; /* text-xl */
@@ -28,77 +38,90 @@
   margin-bottom: 0.5rem !important;
 }
 
+/* 段落（p）のスタイル */
 .notion-editor p {
-  margin-bottom: 0.25rem;
-  line-height: 1.5;
+  margin-bottom: 0.25rem; /* 下余白を少しに設定 */
+  line-height: 1.5; /* 行間を読みやすく調整 */
 }
 
+/* 箇条書き（ul）のスタイル */
 .notion-editor ul,
 .notion-editor .ProseMirror ul {
-  padding-left: 1.5rem !important;
-  list-style-type: disc !important;
-  margin-bottom: 0.25rem;
+  padding-left: 1.5rem !important; /* インデント調整 */
+  list-style-type: disc !important; /* デフォルトの●に設定 */
+  margin-bottom: 0.25rem; /* 下余白を少しに */
 }
 
+/* 番号付きリスト（ol）のスタイル */
 .notion-editor ol,
 .notion-editor .ProseMirror ol {
-  padding-left: 1.5rem !important;
+  padding-left: 1.5rem !important; /* インデント調整 */
+  list-style-type: decimal !important; /* デフォルトの数字に設定 */
   margin-bottom: 0.25rem;
 }
 
+/* リストアイテム（li）の行間調整 */
 .notion-editor li {
-  margin-bottom: 0;
+  margin-bottom: 0; /* 個別余白なし */
   line-height: 1.5;
 }
 
+/* 引用ブロック（blockquote）のスタイル */
 .notion-editor blockquote,
 .notion-editor .ProseMirror blockquote {
-  border-left: 3px solid #ccc !important;
-  padding-left: 1rem !important;
-  margin-left: 0 !important;
-  color: #6c757d !important;
-  font-style: italic !important;
+  border-left: 3px solid #ccc !important; /* 左線で強調 */
+  padding-left: 1rem !important; /* 左側余白 */
+  margin-left: 0 !important; /* 左マージンリセット */
+  color: #6c757d !important; /* 薄いグレー文字 */
+  font-style: italic !important; /* 斜体 */
 }
 
+/* コードブロック（pre）のスタイル */
 .notion-editor pre,
 .notion-editor .ProseMirror pre {
-  background-color: #f7f6f3 !important;
-  padding: 0.75rem 1rem !important;
-  border-radius: 4px !important;
+  background-color: #f7f6f3 !important; /* 背景色 */
+  padding: 0.75rem 1rem !important; /* 内側余白 */
+  border-radius: 4px !important; /* 角丸 */
   margin-top: 0.5rem !important;
   margin-bottom: 0.5rem !important;
-  overflow-x: auto !important;
+  overflow-x: auto !important; /* 横スクロール可能 */
 }
 
+/* コードブロック内のコード（code）のスタイル */
 .notion-editor pre code {
-  font-family: monospace !important;
+  font-family: monospace !important; /* 等幅フォント */
   font-size: 0.875rem !important; /* text-sm */
 }
 
+/* リンク（a）のスタイル */
 .notion-editor a {
-  color: #3b82f6;
-  text-decoration: underline;
-  cursor: pointer;
+  color: #3b82f6; /* 青色 */
+  text-decoration: underline; /* 下線 */
+  cursor: pointer; /* ホバー時にカーソル変更 */
 }
 
+/* 太字（strong）のスタイル */
 .notion-editor strong,
 .notion-editor .ProseMirror strong {
-  font-weight: 700 !important; /* 太字を強制適用 */
+  font-weight: 700 !important; /* 強制的に太字 */
 }
 
+/* 斜体（em）のスタイル */
 .notion-editor em,
 .notion-editor .ProseMirror em {
-  font-style: italic !important; /* 斜体を強制適用 */
+  font-style: italic !important; /* 強制的に斜体 */
 }
 
+/* インラインコード（code）のスタイル */
 .notion-editor code,
 .notion-editor .ProseMirror code {
-  background-color: #f7f6f3 !important; /* インラインコードの背景色 */
-  font-family: monospace !important;
-  padding: 2px 4px !important;
-  border-radius: 3px !important;
+  background-color: #f7f6f3 !important; /* 背景色 */
+  font-family: monospace !important; /* 等幅フォント */
+  padding: 2px 4px !important; /* 内側余白 */
+  border-radius: 3px !important; /* 角丸 */
 }
 
+/* 選択中のブロックに背景色を付与（選択時のハイライト） */
 .notion-editor p.is-selected,
 .notion-editor h1.is-selected,
 .notion-editor h2.is-selected,
@@ -107,5 +130,5 @@
 .notion-editor ol.is-selected,
 .notion-editor blockquote.is-selected,
 .notion-editor pre.is-selected {
-  background-color: rgba(55, 53, 47, 0.08);
+  background-color: rgba(55, 53, 47, 0.08); /* 薄いグレーで選択を視覚化 */
 }
