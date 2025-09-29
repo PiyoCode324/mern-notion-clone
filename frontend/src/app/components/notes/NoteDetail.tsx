@@ -20,19 +20,21 @@ import TiptapEditor from "./TiptapEditor";
 import { defaultMarkdownSerializer } from "prosemirror-markdown";
 import { JSONContent } from "@tiptap/core";
 import { Node } from "prosemirror-model";
+import { useRouter } from "next/navigation";
 
 interface NoteDetailProps {
   noteId?: string | null;
+  notes?: INote[]; // ← 親から渡す
   onDelete?: () => void;
   editable?: boolean;
 
   // CreatePage 用
   onChangeContent?: (content: JSONContent) => Promise<void>;
   isCreateMode?: boolean;
-  title?: string; // optional に変更
-  setTitle?: Dispatch<SetStateAction<string>>; // optional に変更
-  tags?: string[]; // optional に変更
-  setTags?: Dispatch<SetStateAction<string[]>>; // optional に変更
+  title?: string;
+  setTitle?: Dispatch<SetStateAction<string>>;
+  tags?: string[];
+  setTags?: Dispatch<SetStateAction<string[]>>;
 }
 
 const debounce = (func: Function, delay: number) => {
@@ -45,6 +47,7 @@ const debounce = (func: Function, delay: number) => {
 
 const NoteDetail: React.FC<NoteDetailProps> = ({
   noteId = null,
+  notes = [], // ← デフォルト空配列
   onDelete,
   editable = true,
   onChangeContent,
@@ -64,12 +67,12 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
     content: [],
   });
 
-  // title / tags は props があればそれを使い、なければ state で管理
   const [title, setTitle] = useState(propTitle || "");
   const [tags, setTags] = useState<string[]>(propTags || []);
   const initialLoadRef = useRef(true);
+  const router = useRouter();
 
-  // props が更新されたときも state を同期
+  // props が更新されたときに state を同期
   useEffect(() => {
     if (propTitle !== undefined) setTitle(propTitle);
   }, [propTitle]);
@@ -101,7 +104,7 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
     fetchNote();
   }, [user, token, noteId, isCreateMode, propTitle, propTags]);
 
-  // 自動保存処理
+  // 自動保存
   const autoSave = useRef(
     debounce(async (content: JSONContent) => {
       try {
@@ -127,7 +130,6 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
     }, 2000)
   ).current;
 
-  // editorContent が変更されたら自動保存
   useEffect(() => {
     if (initialLoadRef.current) {
       initialLoadRef.current = false;
@@ -136,12 +138,27 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
     if (editorContent) autoSave(editorContent);
   }, [editorContent, title, tags, noteId]);
 
+  // 削除処理
   const handleDelete = async () => {
     if (!confirm("Are you sure you want to delete this note?")) return;
     try {
       if (!note) return;
       await deleteNote(note._id, token!);
+
       if (onDelete) onDelete();
+
+      // 削除後の遷移
+      const remainingNotes = notes.filter((n) => n._id !== note._id);
+      if (remainingNotes.length > 0) {
+        const nextNote = remainingNotes.sort(
+          (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        )[0];
+        router.push(`/notes/${nextNote._id}`);
+      } else {
+        router.push("/notes"); // ノートが0個ならホームページへ
+      }
+
       setNote(null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to delete note");
@@ -158,7 +175,6 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
-      {/* タイトル */}
       <input
         type="text"
         value={title}
@@ -169,7 +185,6 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
         className="w-full text-3xl font-bold mb-2 border-b focus:outline-none"
       />
 
-      {/* 作成/更新日時 */}
       {!isCreateMode && note?._id && (
         <div className="text-sm text-gray-500 mb-4">
           Created: {new Date(note.createdAt).toLocaleString()} | Updated:{" "}
@@ -177,7 +192,6 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
         </div>
       )}
 
-      {/* タグ */}
       <input
         type="text"
         value={tags.join(", ")}
@@ -190,14 +204,12 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
         className="w-full mb-4 border rounded px-3 py-1 focus:outline-none"
       />
 
-      {/* エディタ */}
       <TiptapEditor
         content={editorContent}
         onChange={handleContentChange}
         editable={editable}
       />
 
-      {/* 削除ボタン */}
       {!isCreateMode && note?._id && (
         <div className="flex space-x-2 mt-4">
           <button

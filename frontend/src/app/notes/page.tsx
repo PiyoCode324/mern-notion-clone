@@ -1,59 +1,21 @@
 // frontend/src/app/notes/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
-import { useAuth } from "../hooks/useAuth";
-import { INote } from "../../types";
-import NoteList from "../components/notes/NoteList";
-import NoteDetail from "../components/notes/NoteDetail";
-import { getNotes } from "@/services/noteService";
+import Link from "next/link";
 
-export default function NotesPage() {
-  const { user, token, loading } = useAuth();
-  const [notes, setNotes] = useState<INote[]>([]);
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!user || !token) return;
-
-    const fetchAllNotes = async () => {
-      try {
-        const data = await getNotes(token);
-        setNotes(data);
-        setFetchError(null);
-        // 最初のノートを自動選択
-        if (data.length > 0) setSelectedNoteId(data[0]._id);
-      } catch (err: unknown) {
-        console.error(err);
-        if (err instanceof Error) setFetchError(err.message);
-        else setFetchError("Failed to fetch notes.");
-        setNotes([]);
-      }
-    };
-
-    fetchAllNotes();
-  }, [user, token]);
-
-  if (loading) return <p className="p-4">Loading...</p>;
-  if (!user || !token) return null;
-
+export default function NotesHomePage() {
   return (
-    <div className="flex h-screen">
-      {/* メインコンテンツ */}
-      <main className="flex-1 p-6 overflow-y-auto">
-        {selectedNoteId ? (
-          <NoteDetail
-            noteId={selectedNoteId}
-            onDelete={() => {
-              setNotes((prev) => prev.filter((n) => n._id !== selectedNoteId));
-              setSelectedNoteId(null);
-            }}
-          />
-        ) : (
-          <p className="text-gray-500">Select a note to view/edit</p>
-        )}
-      </main>
+    <div className="p-6 max-w-2xl mx-auto">
+      <h1 className="text-3xl font-bold mb-4">Welcome to My Notion Clone</h1>
+      <p className="mb-4">
+        Select a note from the sidebar or create a new one.
+      </p>
+      <Link
+        href="/notes/create"
+        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500"
+      >
+        ➕ Create Note
+      </Link>
     </div>
   );
 }
