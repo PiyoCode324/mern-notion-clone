@@ -1,41 +1,39 @@
 // frontend/src/hooks/useAuth.ts
-"use client";
-
-import { useEffect, useState } from "react";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { useState, useEffect } from "react";
 import { auth } from "../firebase";
-import { useRouter } from "next/navigation";
+import { onAuthStateChanged, getIdToken } from "firebase/auth";
 
-export const useAuth = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState<string | null>(null);
-  const router = useRouter();
+interface AuthState {
+  user: any | null;
+  token: string | null;
+  loading: boolean;
+}
+
+export const useAuth = (): AuthState => {
+  const [authState, setAuthState] = useState<AuthState>({
+    user: null,
+    token: null,
+    loading: true,
+  });
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        // ユーザーがログインしている場合
-        setUser(firebaseUser);
-        try {
-          // 強制的に最新のIDトークンを取得
-          const idToken = await firebaseUser.getIdToken(true);
-          setToken(idToken);
-        } catch (error) {
-          console.error("Failed to get fresh token:", error);
-          setToken(null);
-        }
+    console.log("[useAuth] useEffect mounted");
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log("[useAuth] onAuthStateChanged fired:", user);
+      if (user) {
+        const token = await getIdToken(user);
+        console.log("[useAuth] Fresh ID token retrieved:", token);
+        setAuthState({ user, token, loading: false });
       } else {
-        // ユーザーが未ログインの場合
-        setUser(null);
-        setToken(null);
-        router.push("/login");
+        setAuthState({ user: null, token: null, loading: false });
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
-  }, [router]);
+    return () => {
+      console.log("[useAuth] unsubscribe called");
+      unsubscribe();
+    };
+  }, []);
 
-  return { user, loading, token };
+  return authState;
 };

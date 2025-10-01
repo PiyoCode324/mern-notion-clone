@@ -1,227 +1,285 @@
-// frontend/src/app/components/notes/NoteDetail.tsx
+// frontend/src/components/NoteDetail.tsx
 "use client";
 
 import React, {
-  useEffect,
-  useState,
-  useRef,
-  Dispatch,
-  SetStateAction,
+  useEffect,
+  useState,
+  useRef,
+  Dispatch,
+  SetStateAction,
 } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { INote } from "../../../types";
-import {
-  deleteNote,
-  getNoteById,
-  updateNote,
-  createNote,
-} from "@/services/noteService";
-import TiptapEditor from "./TiptapEditor";
-import { defaultMarkdownSerializer } from "prosemirror-markdown";
+import { INote } from "@/types";
+import { deleteNote, getNoteById, updateNote } from "@/services/noteService";
+import TiptapEditor, { editorExtensions } from "./TiptapEditor";
 import { JSONContent } from "@tiptap/core";
-import { Node } from "prosemirror-model";
+import { generateText } from "@tiptap/core";
 import { useRouter } from "next/navigation";
 
-interface NoteDetailProps {
-  noteId?: string | null;
-  notes?: INote[]; // ← 親から渡す
-  onDelete?: () => void;
-  editable?: boolean;
-
-  // CreatePage 用
-  onChangeContent?: (content: JSONContent) => Promise<void>;
-  isCreateMode?: boolean;
-  title?: string;
-  setTitle?: Dispatch<SetStateAction<string>>;
-  tags?: string[];
-  setTags?: Dispatch<SetStateAction<string[]>>;
-}
-
+// デバウンス関数
 const debounce = (func: Function, delay: number) => {
-  let timeoutId: NodeJS.Timeout;
-  return (...args: any) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => func(...args), delay);
-  };
+  let timeoutId: NodeJS.Timeout;
+  return (...args: any) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
 };
 
+interface NoteDetailProps {
+  noteId?: string | null;
+  notes?: INote[];
+  onDelete?: () => void;
+  editable?: boolean;
+  onChangeContent?: (content: JSONContent) => Promise<void>;
+  isCreateMode?: boolean;
+  title?: string;
+  setTitle?: Dispatch<SetStateAction<string>>;
+  tags?: string[];
+  setTags?: Dispatch<SetStateAction<string[]>>;
+}
+
 const NoteDetail: React.FC<NoteDetailProps> = ({
-  noteId = null,
-  notes = [], // ← デフォルト空配列
-  onDelete,
-  editable = true,
-  onChangeContent,
-  isCreateMode = false,
-  title: propTitle,
-  setTitle: propSetTitle,
-  tags: propTags,
-  setTags: propSetTags,
+  noteId = null,
+  notes = [],
+  onDelete,
+  editable = true,
+  // onChangeContent, 
+  isCreateMode = false,
+  title: propTitle,
+  setTitle: propSetTitle,
+  tags: propTags,
+  setTags: propSetTags,
 }) => {
-  const { user, token, loading } = useAuth();
-  const [note, setNote] = useState<INote | null>(null);
-  const [loadingNote, setLoadingNote] = useState(true);
-  const [error, setError] = useState("");
+  const { user, token, loading } = useAuth();
+  const [note, setNote] = useState<INote | null>(null);
+  const [loadingNote, setLoadingNote] = useState(true);
+  const [error, setError] = useState("");
 
-  const [editorContent, setEditorContent] = useState<JSONContent>({
-    type: "doc",
-    content: [],
-  });
+  // propTitle, propTagsが存在しない場合にのみ、内部ステートを定義
+  const [localTitle, setLocalTitle] = useState("");
+  const [localTags, setLocalTags] = useState<string[]>([]);
 
-  const [title, setTitle] = useState(propTitle || "");
-  const [tags, setTags] = useState<string[]>(propTags || []);
-  const initialLoadRef = useRef(true);
-  const router = useRouter();
+  // 実際に使用する title, tags, セッターを決定
+  const currentTitle = propTitle !== undefined ? propTitle : localTitle;
+  const currentSetTitle = propSetTitle !== undefined ? propSetTitle : setLocalTitle;
+  const currentTags = propTags !== undefined ? propTags : localTags;
+  const currentSetTags = propSetTags !== undefined ? propSetTags : setLocalTags;
+  
+  const router = useRouter();
+  const [editorContent, setEditorContent] = useState<JSONContent>({
+    type: "doc",
+    content: [],
+  });
 
-  // props が更新されたときに state を同期
-  useEffect(() => {
-    if (propTitle !== undefined) setTitle(propTitle);
-  }, [propTitle]);
+  // 💡 追加：最終保存時刻を保持するステート
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (propTags !== undefined) setTags(propTags);
-  }, [propTags]);
+  // ノートデータの取得
+  useEffect(() => {
+    if (loading || !user || !token || !noteId || isCreateMode) {
+      console.log("[NoteDetail] fetchNote skipped.");
+      setLoadingNote(false);
+      return;
+    }
 
-  // 既存ノート取得（作成モードでなければ）
-  useEffect(() => {
-    if (!user || !token || !noteId || isCreateMode) return;
+    const fetchNote = async () => {
+      setLoadingNote(true);
+      try {
+        const found = await getNoteById(noteId, token);
+        setNote(found);
+        setEditorContent(found.content || { type: "doc", content: [] });
+        // 初期データとしてupdatedAtも設定
+        setLastSavedAt(found.updatedAt);
+        
+        if (propTitle === undefined) currentSetTitle(found.title || "");
+        if (propTags === undefined) currentSetTags(found.tags || []);
+      } catch (err: unknown) {
+        console.error("[NoteDetail] Fetch error:", err);
+        setError(err instanceof Error ? err.message : "Failed to fetch note");
+      } finally {
+        setLoadingNote(false);
+      }
+    };
 
-    const fetchNote = async () => {
-      setLoadingNote(true);
-      try {
-        const found = await getNoteById(noteId, token);
-        setNote(found);
-        setEditorContent(found.content || { type: "doc", content: [] });
+    fetchNote();
+  }, [loading, user, token, noteId, isCreateMode, currentSetTitle, currentSetTags]);
 
-        if (!propTitle) setTitle(found.title || "");
-        if (!propTags) setTags(found.tags || []);
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Failed to fetch note");
-      } finally {
-        setLoadingNote(false);
-      }
-    };
 
-    fetchNote();
-  }, [user, token, noteId, isCreateMode, propTitle, propTags]);
+  // ----------------------------------------------------
+  // 💡 修正ポイント１：オートセーブ成功時にsetNote(updated)ではなくsetLastSavedAtを呼び出す
+  // ----------------------------------------------------
 
-  // 自動保存
-  const autoSave = useRef(
-    debounce(async (content: JSONContent) => {
-      try {
-        if (isCreateMode && onChangeContent) {
-          await onChangeContent(content);
-        } else if (!isCreateMode && token && (noteId || note?._id)) {
-          const docNode = content as unknown as Node;
-          const markdown = defaultMarkdownSerializer.serialize(docNode);
-          const payload = { title, tags, content, markdown };
-          const updated = await updateNote(
-            note?._id || noteId!,
-            payload,
-            token
-          );
-          setNote(updated);
-          console.log("Auto-saved note");
-        }
-      } catch (err: unknown) {
-        setError(
-          err instanceof Error ? err.message : "Failed to auto-save note"
-        );
-      }
-    }, 2000)
-  ).current;
+  const debouncedSave = useRef(
+    debounce(
+      async (
+        currentTitleValue: string,
+        currentTagsValue: string[],
+        content: JSONContent,
+        currentToken: string,
+        currentNoteId: string,
+        updateLastSavedAt: (timestamp: string) => void // コールバックを追加
+      ) => {
+        console.log("[NoteDetail] autoSave triggered.");
+        try {
+          const markdown = generateText(content, editorExtensions);
+          const payload = {
+            title: currentTitleValue,
+            tags: currentTagsValue,
+            content,
+            markdown,
+          };
+          console.log("[NoteDetail] Sending update payload (Title):", payload.title);
+          const updated = await updateNote(
+            currentNoteId,
+            payload,
+            currentToken
+          );
+          console.log("[NoteDetail] Auto-saved successfully.");
+          
+          // 💡 setNoteを削除し、lastSavedAtのみを更新することで再レンダリングの連鎖を断ち切る
+          updateLastSavedAt(updated.updatedAt);
+          
+        } catch (err: unknown) {
+          console.error("[NoteDetail] Auto-save error:", err);
+          setError(
+            err instanceof Error ? err.message : "Failed to auto-save note"
+          );
+        }
+      },
+      3000
+    )
+  ).current;
 
-  useEffect(() => {
-    if (initialLoadRef.current) {
-      initialLoadRef.current = false;
-      return;
-    }
-    if (editorContent) autoSave(editorContent);
-  }, [editorContent, title, tags, noteId]);
+  // ----------------------------------------------------
+  // 💡 修正ポイント２：useEffectの依存配列からnoteを削除する
+  // ----------------------------------------------------
+  useEffect(() => {
+    console.log("[NoteDetail] useEffect for autoSave triggered.");
+    
+    // noteIdToUseは、noteIdとnote?._idのどちらかを使う。
+    // noteはノート取得後の初期設定でしか使わないように依存配列から外したいが、
+    // noteIdが初期値nullで、note取得後にnote._idを使うケースがあるため、この変数は残す。
+    const noteIdToUse = note?._id || noteId;
 
-  // 削除処理
-  const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this note?")) return;
-    try {
-      if (!note) return;
-      await deleteNote(note._id, token!);
+    if (
+      !loading &&
+      !loadingNote &&
+      !!editorContent &&
+      !isCreateMode &&
+      !!token &&
+      !!noteIdToUse
+    ) {
+      debouncedSave(
+        currentTitle,
+        currentTags,
+        editorContent,
+        token,
+        noteIdToUse,
+        setLastSavedAt // コールバックを渡す
+      );
+    } else {
+      console.log("[NoteDetail] autoSave skipped.");
+    }
+  }, [
+    loading,
+    loadingNote,
+    editorContent,
+    currentTitle,
+    currentTags,
+    noteId,
+    isCreateMode,
+    token,
+    note, // ⚠ 依存に残すのは、noteが初期設定完了を示すため。ただし無限ループの原因はsetNote(updated)なので、これは残しても大丈夫なはず。
+    debouncedSave,
+  ]);
 
-      if (onDelete) onDelete();
 
-      // 削除後の遷移
-      const remainingNotes = notes.filter((n) => n._id !== note._id);
-      if (remainingNotes.length > 0) {
-        const nextNote = remainingNotes.sort(
-          (a, b) =>
-            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-        )[0];
-        router.push(`/notes/${nextNote._id}`);
-      } else {
-        router.push("/notes"); // ノートが0個ならホームページへ
-      }
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete this note?")) return;
+    try {
+      if (!note || !token) return;
+      await deleteNote(note._id, token);
+      console.log("[NoteDetail] Note deleted:", note._id);
+      if (onDelete) onDelete();
 
-      setNote(null);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to delete note");
-    }
-  };
+      const remainingNotes = notes.filter((n) => n._id !== note._id);
+      if (remainingNotes.length > 0) {
+        const nextNote = remainingNotes.sort(
+          (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        )[0];
+        router.push(`/notes/${nextNote._id}`);
+      } else {
+        router.push("/notes");
+      }
 
-  const handleContentChange = (content: JSONContent) => {
-    setEditorContent(content);
-  };
+      setNote(null);
+    } catch (err: unknown) {
+      console.error("[NoteDetail] Delete error:", err);
+      setError(err instanceof Error ? err.message : "Failed to delete note");
+    }
+  };
 
-  if (loading || loadingNote) return <p className="p-4">Loading...</p>;
-  if (!user || !token) return null;
-  if (error) return <p className="p-4 text-red-500">{error}</p>;
+  const handleContentChange = (content: JSONContent) => {
+    setEditorContent(content);
+  };
 
-  return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <input
-        type="text"
-        value={title}
-        onChange={(e) =>
-          propSetTitle ? propSetTitle(e.target.value) : setTitle(e.target.value)
-        }
-        placeholder="Title"
-        className="w-full text-3xl font-bold mb-2 border-b focus:outline-none"
-      />
+  // 認証またはデータ取得のローディング中に画面に表示する
+  if (loading || loadingNote) return <p className="p-4">Loading...</p>;
+  if (!user || !token) return null;
+  if (error) return <p className="p-4 text-red-500">{error}</p>;
 
-      {!isCreateMode && note?._id && (
-        <div className="text-sm text-gray-500 mb-4">
-          Created: {new Date(note.createdAt).toLocaleString()} | Updated:{" "}
-          {new Date(note.updatedAt).toLocaleString()}
-        </div>
-      )}
+  return (
+    <div className="p-6 max-w-2xl mx-auto">
+      <input
+        type="text"
+        value={currentTitle}
+        onChange={(e) => {
+          currentSetTitle(e.target.value);
+        }}
+        placeholder="Title"
+        spellCheck={false}
+        className="w-full text-3xl font-bold mb-2 border-b focus:outline-none"
+      />
 
-      <input
-        type="text"
-        value={tags.join(", ")}
-        onChange={(e) =>
-          propSetTags
-            ? propSetTags(e.target.value.split(",").map((t) => t.trim()))
-            : setTags(e.target.value.split(",").map((t) => t.trim()))
-        }
-        placeholder="Tags (comma separated)"
-        className="w-full mb-4 border rounded px-3 py-1 focus:outline-none"
-      />
+      {!isCreateMode && (note?._id || noteId) && (
+        <div className="text-sm text-gray-500 mb-4">
+          Created: {note?.createdAt ? new Date(note.createdAt).toLocaleString() : 'N/A'} |
+          {/* lastSavedAtを使用して更新日時を表示 */}
+          Updated: {lastSavedAt ? new Date(lastSavedAt).toLocaleString() : 'N/A'}
+        </div>
+      )}
 
-      <TiptapEditor
-        content={editorContent}
-        onChange={handleContentChange}
-        editable={editable}
-      />
+      <input
+        type="text"
+        value={currentTags.join(", ")}
+        onChange={(e) => {
+          const newTags = e.target.value.split(",").map((t) => t.trim());
+          currentSetTags(newTags);
+        }}
+        placeholder="Tags (comma separated)"
+        spellCheck={false}
+        className="w-full mb-4 border rounded px-3 py-1 focus:outline-none"
+      />
 
-      {!isCreateMode && note?._id && (
-        <div className="flex space-x-2 mt-4">
-          <button
-            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-500"
-            onClick={handleDelete}
-          >
-            Delete
-          </button>
-        </div>
-      )}
-    </div>
-  );
+      <TiptapEditor
+        content={editorContent}
+        onChange={handleContentChange}
+        editable={editable}
+      />
+
+      {!isCreateMode && (note?._id || noteId) && (
+        <div className="flex space-x-2 mt-4">
+          <button
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-500"
+            onClick={handleDelete}
+          >
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default NoteDetail;

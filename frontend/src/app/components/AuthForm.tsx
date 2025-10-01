@@ -2,7 +2,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -21,33 +20,36 @@ export const AuthForm: React.FC<AuthFormProps> = ({ isLogin }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    console.log("[AuthForm] Submitted:", { email, password, isLogin });
 
     try {
       let userCredential;
 
       if (isLogin) {
-        // ログイン
+        console.log("[AuthForm] Trying to login...");
         userCredential = await signInWithEmailAndPassword(
           auth,
           email,
           password
         );
       } else {
-        // サインアップ (バックエンドに登録)
+        console.log("[AuthForm] Trying to sign up...");
         const response = await fetch("http://localhost:5000/api/auth/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password }),
         });
 
+        console.log("[AuthForm] Backend response status:", response.status);
+
         if (!response.ok) {
           const errorData = await response.json();
+          console.error("[AuthForm] Backend signup error:", errorData);
           throw new Error(
             errorData.message || "Failed to sign up on the backend."
           );
         }
 
-        // Firebase にもサインインして token を取得
         userCredential = await signInWithEmailAndPassword(
           auth,
           email,
@@ -55,16 +57,22 @@ export const AuthForm: React.FC<AuthFormProps> = ({ isLogin }) => {
         );
       }
 
-      // ✅ Firebase IDトークンを localStorage に保存
       const token = await userCredential.user.getIdToken();
-      localStorage.setItem("token", token);
+      console.log("[AuthForm] Firebase token retrieved:", token);
 
-      // ダッシュボードへ
-      window.location.href = "/dashboard";
+      localStorage.setItem("token", token);
+      console.log(
+        "[AuthForm] Token saved to localStorage:",
+        localStorage.getItem("token")
+      );
+
+      window.location.href = "/notes";
     } catch (err: unknown) {
       if (err instanceof Error) {
+        console.error("[AuthForm] Error:", err.message);
         setError(err.message);
       } else {
+        console.error("[AuthForm] Unknown error:", err);
         setError("An unknown error occurred");
       }
     }
@@ -78,45 +86,24 @@ export const AuthForm: React.FC<AuthFormProps> = ({ isLogin }) => {
       <h2 className="text-xl font-bold text-center mb-4">
         {isLogin ? "Login" : "Sign Up"}
       </h2>
-
-      <div>
-        <label className="block text-sm font-medium mb-1" htmlFor="email">
-          Email
-        </label>
-        <input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          placeholder="you@example.com"
-          required
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-1" htmlFor="password">
-          Password
-        </label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          placeholder="••••••••"
-          required
-        />
-      </div>
-
+      <input
+        id="email"
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="you@example.com"
+        required
+      />
+      <input
+        id="password"
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder="••••••••"
+        required
+      />
       {error && <p className="text-red-500 text-sm">{error}</p>}
-
-      <button
-        type="submit"
-        className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-md transition"
-      >
-        {isLogin ? "Login" : "Sign Up"}
-      </button>
+      <button type="submit">{isLogin ? "Login" : "Sign Up"}</button>
     </form>
   );
 };

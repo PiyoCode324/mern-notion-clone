@@ -57,6 +57,7 @@ export default function NoteDetailPage() {
   return (
     <NoteDetail
       noteId={noteId}
+      isCreateMode={false}
       notes={notes} // NoteDetail に残りノート情報を渡す
       onDelete={() => handleDelete(noteId)}
     />

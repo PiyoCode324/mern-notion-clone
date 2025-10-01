@@ -29,7 +29,7 @@ const Sidebar: React.FC = () => {
         );
         setNotes(sorted);
       } catch (error) {
-        console.error("Failed to fetch notes:", error);
+        console.error("[Sidebar] Failed to fetch notes:", error);
         setNotes([]);
       }
     };
@@ -41,6 +41,7 @@ const Sidebar: React.FC = () => {
   );
 
   const handleSelect = (id: string) => {
+    console.log("[Sidebar] Note selected:", id);
     router.push(`/notes/${id}`);
     setIsPopupOpen(false);
     setSearchQuery("");
@@ -63,6 +64,7 @@ const Sidebar: React.FC = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => setIsPopupOpen(true)}
             onBlur={() => setTimeout(() => setIsPopupOpen(false), 150)}
+            spellCheck={false} // ハイドレーションエラー防止
           />
           {isPopupOpen && searchQuery.trim() !== "" && (
             <div className="absolute top-full left-0 w-full bg-white dark:bg-gray-800 shadow-lg rounded mt-1 z-50 max-h-64 overflow-y-auto">
@@ -80,7 +82,10 @@ const Sidebar: React.FC = () => {
           <h3 className="text-sm text-gray-500 mb-2">Recent Notes</h3>
           <NoteList
             notes={notes.slice(0, 10)}
-            onSelect={(id) => router.push(`/notes/${id}`)}
+            onSelect={(id) => {
+              console.log("[Sidebar] Recent note selected:", id);
+              router.push(`/notes/${id}`);
+            }}
           />
         </div>
 
