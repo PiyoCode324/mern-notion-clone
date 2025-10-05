@@ -1,8 +1,11 @@
 // backend/controllers/noteController.ts
 import { Request, Response } from "express";
-import Note, { INote } from "../models/Note";
+import Note, { INote, NoteDocument } from "../models/Note";
 import { AuthenticatedRequest } from "../middleware/authMiddleware";
-import mongoose from "mongoose";
+import mongoose, { HydratedDocument, Document } from "mongoose";
+
+// HydratedDocumentは、Mongooseドキュメント（toObject, _idなど）の全メソッド/プロパティを含む、より正確な型
+type NoteDoc = HydratedDocument<INote>;
 
 // JSONContent 型を使う場合、型チェックだけにします
 const validateContent = (content: unknown) => {
@@ -12,18 +15,31 @@ const validateContent = (content: unknown) => {
   return content;
 };
 
-// GET /notes
-export const getNotes = async (req: AuthenticatedRequest, res: Response) => {
+// 💡 [修正] GET /notes: ユーザーの全てのノートを階層構築のために取得
+// エンドポイントは router.get("/", ...) に対応
+export const getAllNotes = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const uid = req.user?.uid;
     if (!uid) return res.status(401).json({ error: "Unauthorized" });
 
-    const notes: INote[] = await Note.find({ createdBy: uid }).sort({
-      updatedAt: -1,
-    });
-    return res.status(200).json(notes);
+    // 💡 注意: このルートは /api/notes/all ではなく /api/notes です。
+    // 💡 ID パラメータを参照するロジックはここには存在しません。
+
+    const notes = (await Note.find({ createdBy: uid }).sort({
+      order: 1,
+      createdAt: 1,
+    })) as NoteDoc[];
+
+    // クライアントで扱いやすい形にIDを整形
+    const clientNotes: NoteDocument[] = notes.map((note) => ({
+      // .toObject()でプレーンなオブジェクトに変換
+      ...note.toObject({ getters: true, virtuals: false }),
+      id: note._id.toString(),
+    }));
+
+    return res.status(200).json(clientNotes);
   } catch (err) {
-    console.error(err);
+    console.error("Error getting all notes:", err);
     return res.status(500).json({ error: "Server error" });
   }
 };
@@ -34,18 +50,28 @@ export const createNote = async (req: AuthenticatedRequest, res: Response) => {
     const uid = req.user?.uid;
     if (!uid) return res.status(401).json({ error: "Unauthorized" });
 
-    const { title, content, markdown, tags } = req.body;
+    const { title, content, markdown, tags, parentId, order } = req.body;
     const validContent = validateContent(content);
 
-    const note: INote = await Note.create({
+    // NoteDoc型としてアサーション
+    const note = (await Note.create({
       title,
       content: validContent,
       markdown: markdown || "",
-      tags,
+      tags: tags || [],
       createdBy: uid,
-    });
+      parentId: parentId || null,
+      order: order || Date.now(),
+    })) as NoteDoc;
 
-    return res.status(201).json(note);
+    // 作成されたノートをクライアント形式に変換して返却
+    const clientNote: NoteDocument = {
+      // .toObject()でプレーンなオブジェクトに変換
+      ...note.toObject({ getters: true, virtuals: false }),
+      id: note._id.toString(),
+    };
+
+    return res.status(201).json(clientNote);
   } catch (err: unknown) {
     console.error(err);
     if (err instanceof Error)
@@ -61,13 +87,24 @@ export const getNoteById = async (req: AuthenticatedRequest, res: Response) => {
     if (!uid) return res.status(401).json({ error: "Unauthorized" });
 
     const { id } = req.params;
+    // 💡 IDのバリデーションはここで必要
     if (!mongoose.Types.ObjectId.isValid(id))
       return res.status(400).json({ error: "Invalid note ID" });
 
-    const note = await Note.findOne({ _id: id, createdBy: uid });
+    // NoteDoc型としてアサーション
+    const note = (await Note.findOne({
+      _id: id,
+      createdBy: uid,
+    })) as NoteDoc | null;
     if (!note) return res.status(404).json({ error: "Note not found" });
 
-    return res.status(200).json(note);
+    // クライアント形式に変換して返却
+    const clientNote: NoteDocument = {
+      ...note.toObject({ getters: true, virtuals: false }),
+      id: note._id.toString(),
+    };
+
+    return res.status(200).json(clientNote);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });
@@ -81,28 +118,35 @@ export const updateNote = async (req: AuthenticatedRequest, res: Response) => {
     if (!uid) return res.status(401).json({ error: "Unauthorized" });
 
     const { id } = req.params;
-    const { title, content, markdown, tags } = req.body;
-    console.log("Received update payload:", {
-      id,
-      title,
-      tags,
-      content,
-      markdown,
-    }); // 追加
+    const { title, content, markdown, tags, parentId, order } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id))
       return res.status(400).json({ error: "Invalid note ID" });
 
-    const validContent = validateContent(content);
+    const updateFields: any = {};
+    if (title !== undefined) updateFields.title = title;
+    if (content !== undefined) updateFields.content = validateContent(content);
+    if (markdown !== undefined) updateFields.markdown = markdown;
+    if (tags !== undefined) updateFields.tags = tags;
+    if (parentId !== undefined) updateFields.parentId = parentId;
+    if (order !== undefined) updateFields.order = order;
 
-    const note = await Note.findOneAndUpdate(
+    // NoteDoc型としてアサーション
+    const note = (await Note.findOneAndUpdate(
       { _id: id, createdBy: uid },
-      { title, content: validContent, markdown: markdown || "", tags },
+      updateFields,
       { new: true }
-    );
+    )) as NoteDoc | null;
 
     if (!note) return res.status(404).json({ error: "Note not found" });
-    return res.status(200).json(note);
+
+    // クライアント形式に変換して返却
+    const clientNote: NoteDocument = {
+      ...note.toObject({ getters: true, virtuals: false }),
+      id: note._id.toString(),
+    };
+
+    return res.status(200).json(clientNote);
   } catch (err: unknown) {
     console.error("Update note error:", {
       error: err instanceof Error ? err.message : String(err),
@@ -125,7 +169,11 @@ export const deleteNote = async (req: AuthenticatedRequest, res: Response) => {
     if (!mongoose.Types.ObjectId.isValid(id))
       return res.status(400).json({ error: "Invalid note ID" });
 
-    const note = await Note.findOneAndDelete({ _id: id, createdBy: uid });
+    // NoteDoc型としてアサーション
+    const note = (await Note.findOneAndDelete({
+      _id: id,
+      createdBy: uid,
+    })) as NoteDoc | null;
     if (!note) return res.status(404).json({ error: "Note not found" });
 
     return res.status(204).end();

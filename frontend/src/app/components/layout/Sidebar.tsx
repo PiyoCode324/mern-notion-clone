@@ -1,17 +1,38 @@
 // frontend/src/app/components/layout/Sidebar.tsx
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import NoteList from "../notes/NoteList";
-import { INote } from "../../../types";
+import { NoteDocument } from "@/types";
 import { useAuth } from "@/app/hooks/useAuth";
-import { getNotes } from "@/services/noteService";
+import { getAllNotes } from "@/services/noteService";
 import { useRouter } from "next/navigation";
+import NoteTreeItem from "@/app/notes/NoteTreeItem";
+import useNoteSelection from "@/app/hooks/useNoteSelection";
+
+// フラットなノートリストをツリー構造に変換するヘルパー関数
+const buildTree = (
+  notes: NoteDocument[],
+  parentId: string | null = null
+): NoteDocument[] => {
+  return (
+    notes
+      .filter((note) => (note.parentId || null) === parentId)
+      .map((note) => ({
+        ...note,
+        children: buildTree(notes, note.id),
+      }))
+      .sort((a, b) => a.order - b.order)
+  );
+};
 
 const Sidebar: React.FC = () => {
-  const { user, token, loading } = useAuth();
-  const [notes, setNotes] = useState<INote[]>([]);
+  const { token, loading } = useAuth();
+  const [flatNotes, setFlatNotes] = useState<NoteDocument[]>([]);
+  const [noteTree, setNoteTree] = useState<NoteDocument[]>([]);
+  const { setSelectedNoteId } = useNoteSelection();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [isPopupOpen, setIsPopupOpen] = useState(false);
 
@@ -19,39 +40,57 @@ const Sidebar: React.FC = () => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const fetchNotes = async () => {
+    const fetchAndBuildTree = async () => {
       if (!token) return;
       try {
-        const data = await getNotes(token);
-        // 更新日で並べ替えて保存
-        const sorted = [...data].sort(
-          (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-        );
-        setNotes(sorted);
+        const data: NoteDocument[] = await getAllNotes(token);
+        setFlatNotes(data);
+        const tree = buildTree(data, null);
+        setNoteTree(tree);
       } catch (error) {
         console.error("[Sidebar] Failed to fetch notes:", error);
-        setNotes([]);
+        setFlatNotes([]);
+        setNoteTree([]);
       }
     };
-    if (!loading) fetchNotes();
+    if (!loading) fetchAndBuildTree();
   }, [token, loading]);
 
-  const filteredNotes = notes.filter((note) =>
+  const filteredNotes = flatNotes.filter((note) =>
     note.title?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleSelect = (id: string) => {
-    console.log("[Sidebar] Note selected:", id);
-    router.push(`/notes/${id}`);
-    setIsPopupOpen(false);
-    setSearchQuery("");
-    inputRef.current?.blur();
+  const handleSelect = useCallback(
+    (id: string) => {
+      console.log("[Sidebar] Note selected:", id);
+      setSelectedNoteId(id);
+      router.push(`/notes/${id}`);
+      setIsPopupOpen(false);
+      setSearchQuery("");
+      inputRef.current?.blur();
+    },
+    [router, setSelectedNoteId]
+  );
+
+  const renderSearchPopup = () => {
+    if (!isPopupOpen || searchQuery.trim() === "") return null;
+    return (
+      <div className="absolute top-full left-0 w-full bg-white dark:bg-gray-800 shadow-lg rounded mt-1 z-50 max-h-64 overflow-y-auto">
+        {filteredNotes.length > 0 ? (
+          <NoteList notes={filteredNotes} onSelect={handleSelect} />
+        ) : (
+          <p className="p-2 text-gray-500">No matching notes</p>
+        )}
+      </div>
+    );
   };
 
   return (
     <aside className="w-64 bg-gray-100 dark:bg-gray-900 h-full p-4 overflow-y-auto relative">
       <nav className="flex flex-col space-y-3">
-        <Link href="/" className="hover:underline font-semibold">Home</Link>
+        <Link href="/" className="hover:underline font-semibold">
+          Home
+        </Link>
 
         {/* 検索バー */}
         <div className="mt-4 relative">
@@ -64,33 +103,35 @@ const Sidebar: React.FC = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => setIsPopupOpen(true)}
             onBlur={() => setTimeout(() => setIsPopupOpen(false), 150)}
-            spellCheck={false} // ハイドレーションエラー防止
+            spellCheck={false}
           />
-          {isPopupOpen && searchQuery.trim() !== "" && (
-            <div className="absolute top-full left-0 w-full bg-white dark:bg-gray-800 shadow-lg rounded mt-1 z-50 max-h-64 overflow-y-auto">
-              {filteredNotes.length > 0 ? (
-                <NoteList notes={filteredNotes} onSelect={handleSelect} />
-              ) : (
-                <p className="p-2 text-gray-500">No matching notes</p>
-              )}
-            </div>
-          )}
+          {renderSearchPopup()}
         </div>
 
-        {/* 最近更新されたノート（10件だけ） */}
+        {/* 階層化されたノートリスト */}
         <div className="mt-4">
-          <h3 className="text-sm text-gray-500 mb-2">Recent Notes</h3>
-          <NoteList
-            notes={notes.slice(0, 10)}
-            onSelect={(id) => {
-              console.log("[Sidebar] Recent note selected:", id);
-              router.push(`/notes/${id}`);
-            }}
-          />
+          <h3 className="text-sm text-gray-500 mb-2">My Pages</h3>
+          <ul className="space-y-1">
+            {noteTree.map((rootNote) => (
+              <NoteTreeItem
+                key={rootNote.id}
+                note={rootNote}
+                onSelect={handleSelect}
+                level={0}
+              />
+            ))}
+            {noteTree.length === 0 && !loading && (
+              <p className="text-sm text-gray-400">ノートを作成しましょう。</p>
+            )}
+          </ul>
         </div>
 
-        <Link href="/notes/create" className="hover:underline mt-4">➕ Create Note</Link>
-        <Link href="/profile" className="hover:underline mt-4">Profile</Link>
+        <Link href="/notes/create" className="hover:underline mt-4">
+          ➕ Create Note
+        </Link>
+        <Link href="/profile" className="hover:underline mt-4">
+          Profile
+        </Link>
       </nav>
     </aside>
   );

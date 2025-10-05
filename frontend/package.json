@@ -15,11 +15,13 @@
     "@tiptap/react": "^3.6.1",
     "@tiptap/starter-kit": "^3.6.1",
     "firebase": "^12.2.1",
+    "lucide-react": "^0.544.0",
     "next": "14.2.5",
     "prosemirror-markdown": "^1.13.2",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.9.3",
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
@@ -27,6 +29,7 @@
     "@types/node": "^20",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.3",
+    "@types/react-router-dom": "^5.3.3",
     "autoprefixer": "^10.4.19",
     "eslint": "^8.57.0",
     "eslint-config-next": "14.2.5",

@@ -1,7 +1,8 @@
 // backend/routes/noteRoutes.ts
 import { Router } from "express";
 import {
-  getNotes,
+  // 💡 [修正] getNotes ではなく getAllNotes をインポート
+  getAllNotes,
   createNote,
   updateNote,
   deleteNote,
@@ -14,7 +15,8 @@ const router = Router();
 // 認証必須ルートにミドルウェアを追加
 router.use(authMiddleware);
 
-router.get("/", getNotes); // ログインユーザーの全ノート取得（更新日降順）
+// 💡 [修正] getAllNotes に変更
+router.get("/", getAllNotes); // ログインユーザーの全ノート取得（更新日降順）
 router.get("/:id", getNoteById);
 router.post("/", createNote); // ノート作成
 router.put("/:id", updateNote); // ノート更新
