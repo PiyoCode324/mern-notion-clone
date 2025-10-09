@@ -1,8 +1,8 @@
 // frontend/src/app/notes/create/page.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useAuth } from "../../hooks/useAuth";
+import React, { useState, useEffect, useRef } from "react"; // 💡 useRef をインポート
+import { useAuthContext } from "../../hooks/useAuthContext";
 import { createNote } from "@/services/noteService";
 import NoteDetail from "../../components/notes/NoteDetail";
 import { NoteDocument } from "../../../types";
@@ -10,25 +10,26 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useNotesData } from "@/app/hooks/useNotesData";
 
 export default function CreateNotePage() {
-  const { user, token, loading } = useAuth();
+  const { user, token, loading } = useAuthContext();
   const searchParams = useSearchParams();
   const router = useRouter();
   const { refreshNotes, updateNoteLocally } = useNotesData();
 
   const [noteDocument, setNoteDocument] = useState<NoteDocument | null>(null);
-  const [initializing, setInitializing] = useState(true);
-  const [hasCreatedNote, setHasCreatedNote] = useState(false);
+  const [initializing, setInitializing] = useState(true); // 💡 useState から useRef に変更し、初期作成フラグを管理します
+  const hasCreatedNoteRef = useRef(false);
 
   const parentId = searchParams.get("parentId");
   const [title, setTitle] = useState("Untitled Note");
   const [tags, setTags] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!user || !token || hasCreatedNote) return;
+    // 💡 useRef の値を使って、既にノート作成処理が実行済みかチェックします
+    if (!user || !token || hasCreatedNoteRef.current) return;
 
     const createInitialNote = async () => {
       setInitializing(true);
-      setHasCreatedNote(true);
+      hasCreatedNoteRef.current = true; // 💡 処理開始前にフラグを true に設定
 
       try {
         const payload = {
@@ -38,8 +39,7 @@ export default function CreateNotePage() {
           content: { type: "doc", content: [] },
         };
         console.log("[CreateNotePage] Creating note:", payload);
-        const created = await createNote(payload, token);
-        // 楽観的更新
+        const created = await createNote(payload, token); // 楽観的更新
         updateNoteLocally(created.id, {
           ...created,
           id: created.id,
@@ -56,7 +56,7 @@ export default function CreateNotePage() {
         console.log("[CreateNotePage] Note created successfully:", created.id);
       } catch (err) {
         console.error("[CreateNotePage] Error creating note:", err);
-        setHasCreatedNote(false);
+        hasCreatedNoteRef.current = false; // 💡 エラー時はフラグを戻す
       } finally {
         setInitializing(false);
       }
@@ -66,8 +66,7 @@ export default function CreateNotePage() {
   }, [
     user,
     token,
-    parentId,
-    hasCreatedNote,
+    parentId, // 💡 hasCreatedNote の依存配列を削除
     router,
     refreshNotes,
     updateNoteLocally,
@@ -79,7 +78,8 @@ export default function CreateNotePage() {
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Create Note</h1>
+            <h1 className="text-2xl font-bold mb-4">Create Note</h1>
+           {" "}
       <NoteDetail
         noteId={noteDocument.id}
         editable={true}
@@ -89,6 +89,7 @@ export default function CreateNotePage() {
         setTags={setTags}
         isCreateMode={true}
       />
+         {" "}
     </div>
   );
 }

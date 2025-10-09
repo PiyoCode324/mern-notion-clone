@@ -1,4 +1,5 @@
-// frontend/src/app/hooks/useAuth.ts
+// frontend/src/app/hooks/_useAuth.ts
+// ⚠️ internal hook – use only inside useAuthContext.tsx
 import { useState, useEffect } from "react";
 import { auth } from "../firebase";
 import { onAuthStateChanged, User, getIdToken } from "firebase/auth";

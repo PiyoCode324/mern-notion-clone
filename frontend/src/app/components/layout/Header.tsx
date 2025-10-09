@@ -2,12 +2,12 @@
 "use client"; // ← これで Client Component になる
 
 import React from "react";
-import { useAuth } from "../../hooks/useAuth";
+import { useAuthContext } from "../../hooks/useAuthContext";
 import { signOut } from "firebase/auth";
 import { auth } from "../../firebase";
 
 const Header: React.FC = () => {
-  const { user } = useAuth();
+  const { user } = useAuthContext();
 
   const handleLogout = async () => {
     try {

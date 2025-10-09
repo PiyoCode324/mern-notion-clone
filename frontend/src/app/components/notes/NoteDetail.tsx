@@ -8,7 +8,7 @@ import React, {
   Dispatch,
   SetStateAction,
 } from "react";
-import { useAuth } from "../../hooks/useAuth";
+import { useAuthContext } from "../../hooks/useAuthContext";
 import { NoteDocument } from "@/types";
 import { deleteNote, getNoteById, updateNote } from "@/services/noteService";
 import TiptapEditor, { editorExtensions } from "./TiptapEditor";
@@ -47,7 +47,7 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
   tags: propTags,
   setTags: propSetTags,
 }) => {
-  const { user, token, loading } = useAuth();
+  const { user, token, loading } = useAuthContext();
   const { refreshNotes, updateNoteLocally } = useNotesData();
   const router = useRouter();
 

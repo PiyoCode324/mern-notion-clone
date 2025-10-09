@@ -6,12 +6,12 @@ import { useParams, useRouter } from "next/navigation";
 import NoteDetail from "../../components/notes/NoteDetail";
 import { NoteDocument } from "../../../types";
 import { getNotes } from "@/services/noteService";
-import { useAuth } from "@/app/hooks/useAuth";
+import { useAuthContext } from "@/app/hooks/useAuthContext";
 
 export default function NoteDetailPage() {
   const { noteId } = useParams() as { noteId: string };
   const router = useRouter();
-  const { user, token, loading } = useAuth();
+  const { user, token, loading } = useAuthContext();
 
   const [notes, setNotes] = useState<NoteDocument[]>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);

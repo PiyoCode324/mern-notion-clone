@@ -11,7 +11,7 @@ import React, {
 } from "react";
 import { NoteDocument } from "@/types";
 import { getAllNotes } from "@/services/noteService";
-import { useAuth } from "@/app/hooks/useAuth";
+import { useAuthContext } from "@/app/hooks/useAuthContext";
 
 interface NoteTreeDocument extends NoteDocument {
   children?: NoteTreeDocument[];
@@ -47,7 +47,7 @@ const NoteContext = createContext<NoteContextType | undefined>(undefined);
 export const NoteProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const { token, loading: authLoading } = useAuth();
+  const { token, loading: authLoading } = useAuthContext();
   const [flatNotes, setFlatNotes] = useState<NoteDocument[]>([]);
   const [noteTree, setNoteTree] = useState<NoteTreeDocument[]>([]);
   const [loadingNotes, setLoadingNotes] = useState(true);
