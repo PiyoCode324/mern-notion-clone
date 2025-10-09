@@ -5,53 +5,89 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { createNote } from "@/services/noteService";
 import NoteDetail from "../../components/notes/NoteDetail";
+import { NoteDocument } from "../../../types";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useNotesData } from "@/app/hooks/useNotesData";
 
 export default function CreateNotePage() {
   const { user, token, loading } = useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const { refreshNotes, updateNoteLocally } = useNotesData();
 
-  const [newNoteId, setNewNoteId] = useState<string | null>(null);
-  const [title, setTitle] = useState("");
+  const [noteDocument, setNoteDocument] = useState<NoteDocument | null>(null);
+  const [initializing, setInitializing] = useState(true);
+  const [hasCreatedNote, setHasCreatedNote] = useState(false);
+
+  const parentId = searchParams.get("parentId");
+  const [title, setTitle] = useState("Untitled Note");
   const [tags, setTags] = useState<string[]>([]);
-  const [initializing, setInitializing] = useState(true); // 初期作成中かどうか
 
-  // 初回ロード時に空のノートを作成して ID を取得
   useEffect(() => {
-    if (!user || !token || newNoteId) return;
+    if (!user || !token || hasCreatedNote) return;
 
     const createInitialNote = async () => {
+      setInitializing(true);
+      setHasCreatedNote(true);
+
       try {
         const payload = {
           title: "Untitled Note",
-          tags: [],
+          parentId: parentId || null,
+          order: 0,
           content: { type: "doc", content: [] },
-          markdown: "",
         };
+        console.log("[CreateNotePage] Creating note:", payload);
         const created = await createNote(payload, token);
-        setNewNoteId(created._id);
-        setInitializing(false);
+        // 楽観的更新
+        updateNoteLocally(created.id, {
+          ...created,
+          id: created.id,
+          title: created.title || "Untitled Note",
+          tags: created.tags || [],
+          content: created.content || { type: "doc", content: [] },
+          updatedAt: created.updatedAt,
+        });
+        await refreshNotes();
+        router.replace(`/notes/${created.id}`);
+        setNoteDocument(created);
+        setTitle(created.title || "Untitled Note");
+        setTags(created.tags || []);
+        console.log("[CreateNotePage] Note created successfully:", created.id);
       } catch (err) {
-        console.error(err);
+        console.error("[CreateNotePage] Error creating note:", err);
+        setHasCreatedNote(false);
+      } finally {
+        setInitializing(false);
       }
     };
 
     createInitialNote();
-  }, [user, token, newNoteId]);
+  }, [
+    user,
+    token,
+    parentId,
+    hasCreatedNote,
+    router,
+    refreshNotes,
+    updateNoteLocally,
+  ]);
 
-  if (loading || initializing) return <p className="p-4">Loading...</p>;
+  if (loading || initializing || !noteDocument)
+    return <p className="p-4">Loading...</p>;
   if (!user || !token) return null;
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">Create Note</h1>
-
-      {/* NoteDetail に編集・自動保存をすべて任せる */}
       <NoteDetail
-        noteId={newNoteId} // 初期作成済みのIDを渡す
+        noteId={noteDocument.id}
         editable={true}
         title={title}
         setTitle={setTitle}
         tags={tags}
         setTags={setTags}
+        isCreateMode={true}
       />
     </div>
   );

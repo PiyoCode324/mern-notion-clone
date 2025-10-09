@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import NoteDetail from "../../components/notes/NoteDetail";
-import { INote } from "../../../types";
+import { NoteDocument } from "../../../types";
 import { getNotes } from "@/services/noteService";
 import { useAuth } from "@/app/hooks/useAuth";
 
@@ -13,7 +13,7 @@ export default function NoteDetailPage() {
   const router = useRouter();
   const { user, token, loading } = useAuth();
 
-  const [notes, setNotes] = useState<INote[]>([]);
+  const [notes, setNotes] = useState<NoteDocument[]>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -21,7 +21,7 @@ export default function NoteDetailPage() {
 
     const fetchAllNotes = async () => {
       try {
-        const data = await getNotes(token);
+        const data: NoteDocument[] = await getNotes(token);
         setNotes(data);
         setFetchError(null);
       } catch (err: unknown) {
@@ -36,17 +36,16 @@ export default function NoteDetailPage() {
   }, [user, token]);
 
   const handleDelete = (deletedNoteId: string) => {
-    const remainingNotes = notes.filter((n) => n._id !== deletedNoteId);
+    const remainingNotes = notes.filter((n) => n.id !== deletedNoteId);
 
     if (remainingNotes.length > 0) {
-      // 更新日時が最新のノートを選択
       const nextNote = remainingNotes.sort(
         (a, b) =>
           new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
       )[0];
-      router.push(`/notes/${nextNote._id}`);
+      router.push(`/notes/${nextNote.id}`);
     } else {
-      router.push(`/notes`); // ノートが0個ならホームページへ
+      router.push(`/notes`);
     }
   };
 
@@ -58,7 +57,7 @@ export default function NoteDetailPage() {
     <NoteDetail
       noteId={noteId}
       isCreateMode={false}
-      notes={notes} // NoteDetail に残りノート情報を渡す
+      notes={notes}
       onDelete={() => handleDelete(noteId)}
     />
   );

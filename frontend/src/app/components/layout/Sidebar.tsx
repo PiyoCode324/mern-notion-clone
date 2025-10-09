@@ -1,36 +1,16 @@
 // frontend/src/app/components/layout/Sidebar.tsx
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
 import NoteList from "../notes/NoteList";
-import { NoteDocument } from "@/types";
-import { useAuth } from "@/app/hooks/useAuth";
-import { getAllNotes } from "@/services/noteService";
 import { useRouter } from "next/navigation";
 import NoteTreeItem from "@/app/notes/NoteTreeItem";
 import useNoteSelection from "@/app/hooks/useNoteSelection";
-
-// フラットなノートリストをツリー構造に変換するヘルパー関数
-const buildTree = (
-  notes: NoteDocument[],
-  parentId: string | null = null
-): NoteDocument[] => {
-  return (
-    notes
-      .filter((note) => (note.parentId || null) === parentId)
-      .map((note) => ({
-        ...note,
-        children: buildTree(notes, note.id),
-      }))
-      .sort((a, b) => a.order - b.order)
-  );
-};
+import { useNotesData } from "@/app/hooks/useNotesData";
 
 const Sidebar: React.FC = () => {
-  const { token, loading } = useAuth();
-  const [flatNotes, setFlatNotes] = useState<NoteDocument[]>([]);
-  const [noteTree, setNoteTree] = useState<NoteDocument[]>([]);
+  const { noteTree, flatNotes, loadingNotes: loading, refreshStatus } = useNotesData();
   const { setSelectedNoteId } = useNoteSelection();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,23 +18,6 @@ const Sidebar: React.FC = () => {
 
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const fetchAndBuildTree = async () => {
-      if (!token) return;
-      try {
-        const data: NoteDocument[] = await getAllNotes(token);
-        setFlatNotes(data);
-        const tree = buildTree(data, null);
-        setNoteTree(tree);
-      } catch (error) {
-        console.error("[Sidebar] Failed to fetch notes:", error);
-        setFlatNotes([]);
-        setNoteTree([]);
-      }
-    };
-    if (!loading) fetchAndBuildTree();
-  }, [token, loading]);
 
   const filteredNotes = flatNotes.filter((note) =>
     note.title?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -71,6 +34,12 @@ const Sidebar: React.FC = () => {
     },
     [router, setSelectedNoteId]
   );
+
+  useEffect(() => {
+    if (refreshStatus === "completed") {
+      console.log("[Sidebar] Notes refreshed successfully");
+    }
+  }, [refreshStatus]);
 
   const renderSearchPopup = () => {
     if (!isPopupOpen || searchQuery.trim() === "") return null;
@@ -92,7 +61,6 @@ const Sidebar: React.FC = () => {
           Home
         </Link>
 
-        {/* 検索バー */}
         <div className="mt-4 relative">
           <input
             ref={inputRef}
@@ -108,19 +76,22 @@ const Sidebar: React.FC = () => {
           {renderSearchPopup()}
         </div>
 
-        {/* 階層化されたノートリスト */}
         <div className="mt-4">
           <h3 className="text-sm text-gray-500 mb-2">My Pages</h3>
           <ul className="space-y-1">
-            {noteTree.map((rootNote) => (
-              <NoteTreeItem
-                key={rootNote.id}
-                note={rootNote}
-                onSelect={handleSelect}
-                level={0}
-              />
-            ))}
-            {noteTree.length === 0 && !loading && (
+            {loading || refreshStatus === "refreshing" ? (
+              <p className="text-sm text-gray-400">Loading notes...</p>
+            ) : (
+              noteTree.map((rootNote) => (
+                <NoteTreeItem
+                  key={rootNote.id}
+                  note={rootNote as any}
+                  onSelect={handleSelect}
+                  level={0}
+                />
+              ))
+            )}
+            {!loading && refreshStatus !== "refreshing" && noteTree.length === 0 && (
               <p className="text-sm text-gray-400">ノートを作成しましょう。</p>
             )}
           </ul>

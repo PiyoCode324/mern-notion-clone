@@ -1,5 +1,4 @@
 // frontend/src/app/components/notes/NoteDetail.tsx
-// frontend/src/app/components/notes/NoteDetail.tsx
 "use client";
 
 import React, {
@@ -16,8 +15,8 @@ import TiptapEditor, { editorExtensions } from "./TiptapEditor";
 import { JSONContent } from "@tiptap/core";
 import { generateText } from "@tiptap/core";
 import { useRouter } from "next/navigation";
+import { useNotesData } from "@/app/hooks/useNotesData";
 
-// デバウンス関数
 const debounce = (func: Function, delay: number) => {
   let timeoutId: NodeJS.Timeout;
   return (...args: any) => {
@@ -29,6 +28,7 @@ const debounce = (func: Function, delay: number) => {
 interface NoteDetailProps {
   noteId?: string | null;
   onDelete?: () => void;
+  notes?: NoteDocument[];
   editable?: boolean;
   isCreateMode?: boolean;
   title?: string;
@@ -48,6 +48,9 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
   setTags: propSetTags,
 }) => {
   const { user, token, loading } = useAuth();
+  const { refreshNotes, updateNoteLocally } = useNotesData();
+  const router = useRouter();
+
   const [note, setNote] = useState<NoteDocument | null>(null);
   const [loadingNote, setLoadingNote] = useState(true);
   const [error, setError] = useState("");
@@ -61,15 +64,17 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
   const currentTags = propTags !== undefined ? propTags : localTags;
   const currentSetTags = propSetTags !== undefined ? propSetTags : setLocalTags;
 
-  const router = useRouter();
   const [editorContent, setEditorContent] = useState<JSONContent>({
     type: "doc",
     content: [],
   });
-
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
-  // ノートデータ取得
+  // 直前の値を保持して無限ループを防ぐ
+  const prevTitleRef = useRef<string>(currentTitle);
+  const prevTagsRef = useRef<string[]>(currentTags);
+
+  // ノート取得
   useEffect(() => {
     if (loading || !user || !token || !noteId || isCreateMode) {
       setLoadingNote(false);
@@ -105,9 +110,37 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
     currentSetTags,
   ]);
 
-  // ----------------------------------------------------
-  // オートセーブ処理
-  // ----------------------------------------------------
+  // タイトルとタグの変更を監視（統合）
+  useEffect(() => {
+    if (!noteId || isCreateMode || !editable) return;
+
+    // タイトルまたはタグが変更された場合のみ更新
+    if (
+      currentTitle !== prevTitleRef.current ||
+      JSON.stringify(currentTags) !== JSON.stringify(prevTagsRef.current)
+    ) {
+      console.log("[NoteDetail] Updating note locally:", {
+        noteId,
+        title: currentTitle,
+        tags: currentTags,
+      });
+      updateNoteLocally(noteId, {
+        title: currentTitle,
+        tags: currentTags,
+      });
+      prevTitleRef.current = currentTitle;
+      prevTagsRef.current = currentTags;
+    }
+  }, [
+    currentTitle,
+    currentTags,
+    noteId,
+    isCreateMode,
+    editable,
+    updateNoteLocally,
+  ]);
+
+  // オートセーブ
   const debouncedSave = useRef(
     debounce(
       async (
@@ -126,12 +159,24 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
             content,
             markdown,
           };
+          console.log(
+            "[NoteDetail] Saving note to server:",
+            currentNoteId,
+            payload
+          );
           const updated = await updateNote(
             currentNoteId,
             payload,
             currentToken
           );
           updateLastSavedAt(updated.updatedAt);
+          updateNoteLocally(currentNoteId, {
+            title: updated.title,
+            tags: updated.tags,
+            content: updated.content,
+            updatedAt: updated.updatedAt,
+          });
+          console.log("[NoteDetail] Server update successful:", currentNoteId);
         } catch (err: unknown) {
           console.error("[NoteDetail] Auto-save error:", err);
           setError(
@@ -164,13 +209,15 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
     debouncedSave,
   ]);
 
-  // ----------------------------------------------------
   // 削除処理
-  // ----------------------------------------------------
   const handleDelete = async () => {
     if (!noteId || !token) return;
     try {
+      console.log("[NoteDetail] Deleting note:", noteId);
       await deleteNote(noteId, token);
+      // 楽観的更新: 削除をローカルで反映
+      updateNoteLocally(noteId, null); // nullを渡して削除
+      await refreshNotes();
       if (onDelete) onDelete();
       router.push("/");
     } catch (err) {
@@ -184,7 +231,6 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
 
   return (
     <div className="w-full h-full flex flex-col space-y-4 p-4">
-      {/* タイトル */}
       <input
         type="text"
         value={currentTitle}
@@ -193,8 +239,6 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
         className="text-xl font-bold border-b pb-1 focus:outline-none"
         disabled={!editable}
       />
-
-      {/* タグ */}
       <input
         type="text"
         value={currentTags.join(", ")}
@@ -205,8 +249,6 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
         className="text-sm border-b pb-1 focus:outline-none"
         disabled={!editable}
       />
-
-      {/* Tiptap Editor */}
       <div className="flex-1 overflow-auto">
         <TiptapEditor
           content={editorContent}
@@ -214,8 +256,6 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
           editable={editable}
         />
       </div>
-
-      {/* 操作ボタン */}
       <div className="flex space-x-2">
         {editable && !isCreateMode && (
           <button

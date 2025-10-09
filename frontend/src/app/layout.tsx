@@ -1,6 +1,9 @@
-// src/app/layout.tsx
+// src/app/layout.tsx 
 import "./globals.css";
-import Layout from "./components/layout/Layout"; // 共通レイアウトをインポート
+import Layout from "./components/layout/Layout";
+import { AuthProvider } from "./hooks/useAuthContext";
+import { NoteProvider } from "./hooks/useNotesData";
+import { AuthGuard } from "./components/AuthGuard";
 
 export const metadata = {
   title: "Next.js",
@@ -15,7 +18,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Layout>{children}</Layout>
+        <AuthProvider>
+          <AuthGuard>
+            <NoteProvider>
+              <Layout>{children}</Layout>
+            </NoteProvider>
+          </AuthGuard>
+        </AuthProvider>
       </body>
     </html>
   );
