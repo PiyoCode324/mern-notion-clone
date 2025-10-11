@@ -2,7 +2,7 @@
 "use client";
 
 import { ReactNode, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuthContext } from "../hooks/useAuthContext";
 
 interface AuthGuardProps {
@@ -12,29 +12,25 @@ interface AuthGuardProps {
 export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
   const { user, loading } = useAuthContext();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    // ローディング中は何もしない
-    if (loading) {
-      return;
-    }
+    if (loading) return;
 
-    // ユーザーが認証されていない場合は、ログインページにリダイレクトする
+    // 🔽 ログインページはガードをスキップ
+    if (pathname === "/login") return;
+
     if (!user) {
       router.push("/login");
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, pathname]);
 
-  // ローディング中は画面のちらつきを防ぐため何も表示しない
-  if (loading) {
-    return null;
-  }
+  if (loading) return null;
 
-  // ユーザーが認証されていない場合は、リダイレクトが完了するまで何も表示しない
-  if (!user) {
-    return null;
-  }
+  // 🔽 ログインページはガード対象外にする
+  if (pathname === "/login") return <>{children}</>;
 
-  // ユーザーが認証されている場合は、子コンポーネントを表示する
+  if (!user) return null;
+
   return <>{children}</>;
 };
