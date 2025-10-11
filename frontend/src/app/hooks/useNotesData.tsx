@@ -8,6 +8,7 @@ import React, {
   useEffect,
   useCallback,
   ReactNode,
+  useRef, // 💡 useRef をインポート
 } from "react";
 import { NoteDocument } from "@/types";
 import { getAllNotes } from "@/services/noteService";
@@ -53,7 +54,10 @@ export const NoteProvider: React.FC<{ children: ReactNode }> = ({
   const [loadingNotes, setLoadingNotes] = useState(true);
   const [refreshStatus, setRefreshStatus] = useState<
     "idle" | "refreshing" | "completed"
-  >("idle");
+  >("idle"); // 💡 修正: 初期データフェッチが実行されたかどうかを追跡するための Ref
+
+  const hasInitialFetchRunRef = useRef(false); // 💡 新しい Ref: 最後にフェッチしたトークンを記憶するための Ref
+  const lastFetchedTokenRef = useRef<string | null>(null);
 
   const fetchAndBuildTree = useCallback(async (currentToken: string | null) => {
     if (!currentToken) {
@@ -63,7 +67,7 @@ export const NoteProvider: React.FC<{ children: ReactNode }> = ({
       return;
     }
 
-    console.log("[NoteProvider] Fetching notes with token:", currentToken);
+    console.log("[NoteProvider] Fetching notes with token: [TRUNCATED]");
     setLoadingNotes(true);
     setRefreshStatus("refreshing");
     try {
@@ -85,14 +89,26 @@ export const NoteProvider: React.FC<{ children: ReactNode }> = ({
   }, []);
 
   useEffect(() => {
-    if (!authLoading) {
-      fetchAndBuildTree(token);
-    }
-  }, [authLoading, token, fetchAndBuildTree]);
+    // 💡 ロジック修正:
+    // 1. 認証が完了し (authLoading=false)
+    // 2. かつトークンが有効であり (token)、
+    // 3. かつ、この有効トークンでまだ初期フェッチを実行していない (lastFetchedTokenRef のチェック)
+    if (!authLoading && token && token !== lastFetchedTokenRef.current) {
+      console.log("[NoteProvider] Auth ready. Triggering initial fetch.");
+      fetchAndBuildTree(token).then(() => {
+        lastFetchedTokenRef.current = token; // 💡 フェッチ成功後にトークンを記録
+      });
+    } else if (!authLoading && !token) {
+      // 認証完了したがトークンがない（ログアウト状態）場合は、ロード状態を解除する
+      setLoadingNotes(false);
+      lastFetchedTokenRef.current = null; // 💡 トークンをクリア
+    } // 💡 hasInitialFetchRunRef は不要になりましたが、より堅牢にするため lastFetchedTokenRef を使います // lastFetchedTokenRef.current が null の状態で fetchAndBuildTree が呼ばれても // 関数内でスキップされるため、authLoading のチェックで十分です。 // 🚨 ログアウト後にログインし直す場合も考慮し、 // lastFetchedTokenRef.current を使って、同じトークンで二度フェッチしないように制御しています。 // これで、StrictModeの二重発火（tokenが同じ値で2回設定される）を無視できます。
+  }, [authLoading, token, fetchAndBuildTree]); // 依存配列は維持
 
   const refreshNotes = async () => {
     if (token) {
       try {
+        // refreshNotes は常にフェッチを実行させる
         await fetchAndBuildTree(token);
       } catch (error) {
         console.error("[NoteProvider] refreshNotes failed:", error);
@@ -133,7 +149,7 @@ export const NoteProvider: React.FC<{ children: ReactNode }> = ({
         updateNoteLocally,
       }}
     >
-      {children}
+            {children}   {" "}
     </NoteContext.Provider>
   );
 };
