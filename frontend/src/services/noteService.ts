@@ -1,7 +1,8 @@
 // frontend/src/services/noteService.ts
 import { INote, NoteDocument } from "@/types";
 
-const API_URL = "http://localhost:5000/api/notes";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'; 
+const API_URL = `${API_BASE_URL}/api/notes`;
 
 const handleResponse = async (res: Response) => {
   const data = await res.json().catch(() => ({}));

@@ -1,7 +1,8 @@
 // frontend/src/api/notes.ts
 import { getAuth } from "firebase/auth";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL as string;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'; 
+const API_URL = `${API_BASE_URL}/api/notes`;
 
 export interface Note {
   _id: string;
@@ -18,7 +19,7 @@ export const fetchNotes = async (): Promise<Note[]> => {
 
   const token = await user.getIdToken();
 
-  const res = await fetch(`${API_URL}/notes`, {
+  const res = await fetch(`${API_URL}`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -42,7 +43,7 @@ export const createNote = async (
 
   const token = await user.getIdToken();
 
-  const res = await fetch(`${API_URL}/notes`, {
+  const res = await fetch(`${API_URL}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
